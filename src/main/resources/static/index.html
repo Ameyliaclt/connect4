@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Puissance 4 / 9x9</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <div id="sidebar">
+      <div class="actions-row">
+        <button class="btn-action" onclick="api.retourner()">←</button>
+        <button class="btn-action" onclick="api.remettre()">→</button>
+        <button class="btn-action" onclick="api.pause()">⏸</button>
+        <button class="btn-action" onclick="api.play()">▷</button>
+      </div>
+      <input type="number" id="num-prof" placeholder="ex: 4" min="1" max="12">
+      <button class="btn-mode" onclick="api.analyse()">Analyse</button>
+      <span class="sidebar-label">Mode de jeu</span>
+      <button class="btn-mode" data-mode="1" onclick="api.setModeJ(1)">JvsJ</button>
+      <button class="btn-mode" data-mode="2" onclick="api.setModeJ(2)">JvsO</button>
+      <button class="btn-mode" data-mode="3" onclick="api.setModeJ(3)">JvsO_IA</button>
+      <button class="btn-mode" data-mode="4" onclick="api.setModeJ(4)">OvsO</button>
+      <button class="btn-mode" data-mode="5" onclick="api.setModeJ(5)">IAvsIA</button>
+      <div style="flex:1;"></div>
+      <button onclick="ouvrirParametres()" style="font-size:0.9rem;width:fit-content;padding:3px 8px;border-radius:4px;align-self:flex-end;line-height:1;border:1px solid #ccc;background:#f0f2f8;cursor:pointer;">⚙️</button>
+    </div>
+
+    <div id="modal-overlay" onclick="fermerParametres()">
+      <div id="modal-content" onclick="event.stopPropagation()">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:var(--bleu);letter-spacing:0.06em;">Paramètres</div>
+        <hr style="border:none;border-top:1px solid #e0e4f0;">
+        <button onclick="api.rejouer();fermerParametres();" style="padding:10px 16px;background:var(--rouge);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:'DM Mono',monospace;font-size:0.95rem;">🔄 Rejouer</button>
+        <button onclick="fermerParametres()" style="padding:8px 16px;background:#f0f2f8;color:#333;border:1px solid #d0d4e8;border-radius:8px;cursor:pointer;font-family:'DM Mono',monospace;font-size:0.9rem;">Fermer</button>
+      </div>
+    </div>
+
+    <div id="annonce">Sélectionner un mode de jeu</div>
+
+    <div id="board-wrap">
+      <div id="col-numbers"></div>
+      <div id="grille"></div>
+    </div>
+
+    <div id="scores"></div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
