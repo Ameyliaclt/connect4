@@ -52,6 +52,7 @@ const api = {
     loopIA = false;
     const token = ++loopToken;
     setModeActif(m);
+    document.getElementById('board-overlay').style.display = 'none';
     fetch(`/api/setMode/${m}`, { method: 'POST' })
       .then(r => r.json())
       .then(game => {
@@ -129,6 +130,7 @@ const api = {
         refreshBoard(game.board, game.wins);
         afficherMessage('Sélectionner un mode de jeu');
         modeActuel = 0;
+        document.getElementById('board-overlay').style.display = 'flex';
         document.querySelectorAll('.btn-mode[data-mode]').forEach(b => b.classList.remove('active'));
         afficherScores(game.scores);
       })

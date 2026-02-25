@@ -45,12 +45,29 @@ body {
   width: calc(var(--cell) * 9 + 4px * 10);
 }
 
+#board-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.3rem;
+  letter-spacing: 0.08em;
+  cursor: not-allowed;
+  border-radius: 0;
+}
+
 #board-wrap {
   grid-area: board;
   background: var(--bleu);
   display: flex;
   flex-direction: column;
   width: fit-content;
+  position: relative;
 }
 
 #col-numbers {
