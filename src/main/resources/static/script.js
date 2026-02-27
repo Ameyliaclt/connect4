@@ -40,6 +40,12 @@ function fermerParametres() {
   document.getElementById('modal-overlay').style.display = 'none';
 }
 
+function apiFetch(url, options = {}) {
+  return fetch(url, {
+    ...options,
+    credentials: 'include'
+  }).then(r => r.json());
+}
 //Etat
 let modeActuel = 0;
 let loopIA = false;
@@ -54,8 +60,7 @@ const api = {
     const token = ++loopToken;
     setModeActif(m);
     document.getElementById('board-overlay').style.display = 'none';
-    fetch(`/api/setMode/${m}`, { method: 'POST' })
-      .then(r => r.json())
+    apiFetch(`/api/setMode/${m}`, { method: 'POST' })
       .then(game => {
         afficherEtat(game);
         // boucle frontend
@@ -68,8 +73,7 @@ const api = {
 
   colonneCliquee(col) {
   if (modeActuel === 4 || modeActuel === 5) return;
-  fetch(`/api/play/${col}`, { method: 'POST' })
-    .then(r => r.json())
+  apiFetch(`/api/play/${col}`, { method: 'POST' })
     .then(game => {
       dernierColonne = col;
       afficherEtat(game);
@@ -86,15 +90,13 @@ const api = {
 },
 
   retourner() {
-    fetch('/api/retirer', { method: 'POST' })
-      .then(r => r.json())
+    apiFetch('/api/retirer', { method: 'POST' })
       .then(afficherEtat)
       .catch(console.error);
   },
 
   remettre() {
-    fetch('/api/remettre', { method: 'POST' })
-      .then(r => r.json())
+    apiFetch('/api/remettre', { method: 'POST' })
       .then(afficherEtat)
       .catch(console.error);
   },
@@ -102,8 +104,7 @@ const api = {
   pause() {
     loopIA = false;
     loopToken++;
-    fetch('/api/pause', { method: 'POST' })
-      .then(r => r.json())
+    apiFetch('/api/pause', { method: 'POST' })
       .then(game => afficherMessage(game.message || 'Pause'))
       .catch(console.error);
   },
@@ -111,8 +112,7 @@ const api = {
   play() {
     const token = ++loopToken;
     loopIA = false;
-    fetch('/api/play', { method: 'POST' })
-      .then(r => r.json())
+    apiFetch('/api/play', { method: 'POST' })
       .then(game => {
         afficherEtat(game);
         if (!game.partieTerminee && (modeActuel === 4 || modeActuel === 5)) {
@@ -125,8 +125,7 @@ const api = {
   analyse() {
     const prof = parseInt(document.getElementById('num-prof').value);
     if (isNaN(prof) || prof < 1) return;
-    fetch(`/api/analyse?profondeur=${prof}`, { method: 'POST' })
-      .then(r => r.json())
+    apiFetch(`/api/analyse?profondeur=${prof}`, { method: 'POST' })
       .then(game => afficherScores(game.scores))
       .catch(console.error);
   },
@@ -134,8 +133,7 @@ const api = {
   rejouer() {
     loopIA = false;
     loopToken++;
-    fetch('/api/reset', { method: 'POST' })
-      .then(r => r.json())
+    apiFetch('/api/reset', { method: 'POST' })
       .then(game => {
         refreshBoard(game.board, game.wins);
         afficherMessage('Sélectionner un mode de jeu');
@@ -151,8 +149,7 @@ const api = {
 //jvsIA et jvsO
 function jouerUnCoupIA(token) {
   if (loopToken !== token) return;
-  fetch('/api/playIA', { method: 'POST' })
-    .then(r => r.json())
+  apiFetch('/api/playIA', { method: 'POST' })
     .then(game => {
       if (game.dernierCoup !== undefined) dernierColonne = game.dernierCoup;
       afficherEtat(game);
@@ -166,8 +163,7 @@ function lancerBoucleIA(delai, token) {
   loopIA = true;
   function step() {
     if (!loopIA || loopToken !== token) { loopIA = false; return; }
-    fetch('/api/playIA', { method: 'POST' })
-      .then(r => r.json())
+    apiFetch('/api/playIA', { method: 'POST' })
       .then(game => {
           if (game.dernierCoup !== undefined) dernierColonne = game.dernierCoup;
           afficherEtat(game);
