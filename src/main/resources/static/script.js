@@ -1,4 +1,5 @@
 const ROWS = 9, COLS = 9;
+let dernierColonne = null;
 
 //Grille 
 (function buildGrid() {
@@ -66,14 +67,23 @@ const api = {
   },
 
   colonneCliquee(col) {
-    if (modeActuel === 4 || modeActuel === 5) return;
-    fetch(`/api/play/${col}`, { method: 'POST' })
-      .then(r => r.json())
-      .then(game => {
-        afficherEtat(game);
-      })
-      .catch(console.error);
-  },
+  if (modeActuel === 4 || modeActuel === 5) return;
+  fetch(`/api/play/${col}`, { method: 'POST' })
+    .then(r => r.json())
+    .then(game => {
+      dernierColonne = col;
+      afficherEtat(game);
+      // Si c'est au tour de l'IA, on attend avant de jouer
+      if (!game.partieTerminee && (modeActuel === 2 || modeActuel === 3)) {
+        const token = loopToken;
+        setTimeout(() => {
+          if (loopToken !== token) return;
+          jouerUnCoupIA(token);
+        }, 700); // délai visible pour lire l'annonce
+      }
+    })
+    .catch(console.error);
+},
 
   retourner() {
     fetch('/api/retirer', { method: 'POST' })
@@ -143,7 +153,10 @@ function jouerUnCoupIA(token) {
   if (loopToken !== token) return;
   fetch('/api/playIA', { method: 'POST' })
     .then(r => r.json())
-    .then(afficherEtat)
+    .then(game => {
+      if (game.dernierCoup !== undefined) dernierColonne = game.dernierCoup;
+      afficherEtat(game);
+    })
     .catch(console.error);
 }
 
@@ -156,17 +169,18 @@ function lancerBoucleIA(delai, token) {
     fetch('/api/playIA', { method: 'POST' })
       .then(r => r.json())
       .then(game => {
-        afficherEtat(game);
-        if (!game.partieTerminee && loopIA && loopToken === token) {
-          setTimeout(step, delai);
-        } else {
-          loopIA = false;
-        }
-      })
-      .catch(() => { loopIA = false; });
-  }
-  setTimeout(step, delai);
-}
+          if (game.dernierCoup !== undefined) dernierColonne = game.dernierCoup;
+          afficherEtat(game);
+          if (!game.partieTerminee && loopIA && loopToken === token) {
+            setTimeout(step, delai);
+          } else {
+            loopIA = false;
+          }
+        })
+        .catch(() => { loopIA = false; });
+      }
+      setTimeout(step, delai);
+    }
 
 // Affichage 
 function afficherEtat(game) {
@@ -174,11 +188,12 @@ function afficherEtat(game) {
   refreshBoard(game.board, game.wins);
   afficherScores(game.scores);
   if (game.partieTerminee) {
-    afficherMessage('Le Joueur '+game.joueurCourant+' a gagné');
+    const couleur = game.joueurCourant === 1 ? 'Rouge' : 'Jaune';
+    afficherMessage(`Le joueur ${couleur} a gagné !`);
   } else if (game.message) {
     afficherMessage(game.message);
   } else {
-    joueurMaj(game.joueurCourant);
+    joueurMaj(game.joueurCourant, dernierColonne);
   }
 }
 
@@ -228,8 +243,16 @@ function setModeActif(m) {
   });
 }
 
-function joueurMaj(j) {
-  if (!j) return;
-  const couleur = j === 1 ? 'Rouge' : 'Jaune';
-  afficherMessage(`Tour du joueur ${couleur}`);
+function joueurMaj(joueurSuivant, dernierCoup) {
+  if (!joueurSuivant) return;
+
+  const nom = j => j === 1 ? 'Rouge' : 'Jaune';
+  const joueurPrecedent = joueurSuivant === 1 ? 2 : 1;
+
+  if (dernierCoup !== undefined && dernierCoup !== null) {
+    const colonne = dernierCoup + 1; // index 0 → numéro 1
+    afficherMessage(`${nom(joueurPrecedent)} a joué colonne ${colonne} — ${nom(joueurSuivant)}, à vous de jouer`);
+  } else {
+    afficherMessage(`Tour du joueur ${nom(joueurSuivant)}`);
+  }
 }

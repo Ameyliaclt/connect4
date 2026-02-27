@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.p4.connect4.model.Coup;
 import com.p4.connect4.model.Model_connect4;
 import com.p4.connect4.model.fct_minmax;
 
@@ -22,18 +23,14 @@ public class GameControlleur {
     private final Model_connect4 game = new Model_connect4(9, 9, 1);
     private final fct_minmax mx = new fct_minmax();
 
-    // Profondeur modifiable
     private int profondeur = 4;
 
     // Joueur humain
     @PostMapping("/play/{col}")
-    public Map<String, Object> play(@PathVariable int col) {
-        game.gameplay(col);
-        if (!game.getisPartieTerminee() && (game.mode_j == 2 || game.mode_j == 3) && game.getJoueurCourant() == 2) {
-            jouerUnCoupIA();
-        }
-        return buildResponse();
-    }
+public Map<String, Object> play(@PathVariable int col) {
+    game.gameplay(col);
+    return buildResponse(); // retourne l'état après le coup humain uniquement
+}
 
     // Reprendre
     @PostMapping("/play")
@@ -54,17 +51,13 @@ public class GameControlleur {
     // Calcul du score et profondeur
     @PostMapping("/analyse")
     public Map<String, Object> analyse(@RequestParam(defaultValue = "4") int profondeur) {
-        // Met à jour la profondeur globale pour les prochains coups IA
         this.profondeur = Math.max(1, Math.min(12, profondeur));
-
         int cols = game.getCols();
         int[] scores = new int[cols];
         int[][] plateau = game.getPlateau();
-
         for (int col = 0; col < cols; col++) {
             scores[col] = mx.getScoreCol(plateau, this.profondeur, col);
         }
-
         Map<String, Object> resp = buildResponse();
         resp.put("scores", scores);
         resp.put("profondeur", this.profondeur);
@@ -104,7 +97,7 @@ public class GameControlleur {
         return resp;
     }
 
-    // Remettre ou retire un pion
+    // Retirer / Remettre
     @PostMapping("/retirer")
     public Map<String, Object> retirer() {
         game.retirer();
@@ -123,7 +116,7 @@ public class GameControlleur {
         return buildResponse();
     }
 
-    //Jouer un coup IA
+    // Jouer un coup IA
     private void jouerUnCoupIA() {
         switch (game.mode_j) {
             case 2, 4 -> game.jouervsordi();
@@ -143,6 +136,15 @@ public class GameControlleur {
         resp.put("scores", new int[game.getCols()]);
         resp.put("mode", game.mode_j);
         resp.put("profondeur", profondeur);
+
+        // Dernier coup lu directement depuis l'historique
+        if (!game.enregistrement_cp.isEmpty()) {
+            Coup dernier = game.enregistrement_cp.get(game.enregistrement_cp.size() - 1);
+            resp.put("dernierCoup", dernier.getcol());
+        } else {
+            resp.put("dernierCoup", null);
+        }
+
         return resp;
     }
 
