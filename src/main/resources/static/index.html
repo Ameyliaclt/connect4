@@ -8,6 +8,48 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- Modal paramètres — EN DEHORS de #app pour éviter overflow:hidden -->
+  <div id="modal-overlay" onclick="fermerParametres()">
+    <div id="modal-content" onclick="event.stopPropagation()">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:var(--bleu);letter-spacing:0.06em;">Paramètres</div>
+      <hr style="border:none;border-top:1px solid #e0e4f0;">
+      <button onclick="api.rejouer();fermerParametres();" style="padding:10px 16px;background:var(--rouge);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:'DM Mono',monospace;font-size:0.95rem;">🔄 Rejouer</button>
+      <button onclick="fermerParametres()" style="padding:8px 16px;background:#f0f2f8;color:#333;border:1px solid #d0d4e8;border-radius:8px;cursor:pointer;font-family:'DM Mono',monospace;font-size:0.9rem;">Fermer</button>
+    </div>
+  </div>
+
+  <!-- Modal choix couleur — EN DEHORS de #app -->
+  <div id="modal-color" onclick="fermerChoixCouleur()">
+    <div id="modal-color-content" onclick="event.stopPropagation()">
+      <div class="modal-color-title">Choisir votre couleur</div>
+      <p class="modal-color-subtitle">Joueur 1, quelle couleur souhaitez-vous ?</p>
+      <div class="color-options">
+        <button class="color-option color-rouge selected" data-color="1" onclick="
+          document.querySelectorAll('.color-option').forEach(b => b.classList.remove('selected'));
+          this.classList.add('selected');
+          couleurJoueur1 = 1;
+        ">
+          <span class="color-preview rouge-preview"></span>
+          <span class="color-label">Rouge</span>
+          <span class="color-sublabel">Commence en premier</span>
+        </button>
+        <button class="color-option color-jaune" data-color="2" onclick="
+          document.querySelectorAll('.color-option').forEach(b => b.classList.remove('selected'));
+          this.classList.add('selected');
+          couleurJoueur1 = 2;
+        ">
+          <span class="color-preview jaune-preview"></span>
+          <span class="color-label">Jaune</span>
+          <span class="color-sublabel">Commence en premier</span>
+        </button>
+      </div>
+      <div class="modal-color-actions">
+        <button class="btn-confirmer" onclick="confirmerCouleur()">Confirmer</button>
+        <button class="btn-annuler" onclick="fermerChoixCouleur()">Annuler</button>
+      </div>
+    </div>
+  </div>
+
   <div id="app">
     <div id="sidebar">
       <div class="actions-row">
@@ -26,15 +68,6 @@
       <button class="btn-mode" data-mode="5" onclick="api.setModeJ(5)">IAvsIA</button>
       <div style="flex:1;"></div>
       <button onclick="ouvrirParametres()" style="font-size:0.9rem;width:fit-content;padding:3px 8px;border-radius:4px;align-self:flex-end;line-height:1;border:1px solid #ccc;background:#f0f2f8;cursor:pointer;">⚙️</button>
-    </div>
-
-    <div id="modal-overlay" onclick="fermerParametres()">
-      <div id="modal-content" onclick="event.stopPropagation()">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:var(--bleu);letter-spacing:0.06em;">Paramètres</div>
-        <hr style="border:none;border-top:1px solid #e0e4f0;">
-        <button onclick="api.rejouer();fermerParametres();" style="padding:10px 16px;background:var(--rouge);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:'DM Mono',monospace;font-size:0.95rem;">🔄 Rejouer</button>
-        <button onclick="fermerParametres()" style="padding:8px 16px;background:#f0f2f8;color:#333;border:1px solid #d0d4e8;border-radius:8px;cursor:pointer;font-family:'DM Mono',monospace;font-size:0.9rem;">Fermer</button>
-      </div>
     </div>
 
     <div id="annonce">Sélectionner un mode de jeu</div>

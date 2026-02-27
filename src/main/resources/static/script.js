@@ -1,5 +1,6 @@
 const ROWS = 9, COLS = 9;
 let dernierColonne = null;
+let couleurJoueur1 = 1; // 1 = rouge (défaut), 2 = jaune
 
 //Grille 
 (function buildGrid() {
@@ -40,12 +41,54 @@ function fermerParametres() {
   document.getElementById('modal-overlay').style.display = 'none';
 }
 
+// Fenetre choix couleur
+let _modePending = null;
+
+function ouvrirChoixCouleur(mode) {
+  _modePending = mode;
+  // Met à jour l'état visuel du sélecteur selon la couleur actuelle
+  document.querySelectorAll('.color-option').forEach(btn => {
+    btn.classList.toggle('selected', parseInt(btn.dataset.color) === couleurJoueur1);
+  });
+  document.getElementById('modal-color').style.display = 'flex';
+}
+
+function fermerChoixCouleur() {
+  document.getElementById('modal-color').style.display = 'none';
+  _modePending = null;
+}
+
+function confirmerCouleur() {
+  const mode = _modePending;
+  fermerChoixCouleur();
+  if (mode !== null) _lancerMode(mode);
+}
+
+function _lancerMode(mode) {
+  modeActuel = mode;
+  loopIA = false;
+  const token = ++loopToken;
+  setModeActif(mode);
+  document.getElementById('board-overlay').style.display = 'none';
+
+  // On envoie la couleur choisie avec le mode
+  apiFetch(`/api/setMode/${mode}?couleur=${couleurJoueur1}`, { method: 'POST' })
+    .then(game => {
+      afficherEtat(game);
+      if ((mode === 4 || mode === 5) && !game.partieTerminee) {
+        lancerBoucleIA(500, token);
+      }
+    })
+    .catch(console.error);
+}
+
 function apiFetch(url, options = {}) {
   return fetch(url, {
     ...options,
     credentials: 'include'
   }).then(r => r.json());
 }
+
 //Etat
 let modeActuel = 0;
 let loopIA = false;
@@ -55,39 +98,32 @@ let loopToken = 0;
 const api = {
 
   setModeJ(m) {
-    modeActuel = m;
-    loopIA = false;
-    const token = ++loopToken;
-    setModeActif(m);
-    document.getElementById('board-overlay').style.display = 'none';
-    apiFetch(`/api/setMode/${m}`, { method: 'POST' })
+    // Modes avec choix de couleur : 1, 2, 3
+    if (m === 1 || m === 2 || m === 3) {
+      ouvrirChoixCouleur(m);
+    } else {
+      // Modes OvsO et IAvsIA : pas de choix
+      couleurJoueur1 = 1;
+      _lancerMode(m);
+    }
+  },
+
+  colonneCliquee(col) {
+    if (modeActuel === 4 || modeActuel === 5) return;
+    apiFetch(`/api/play/${col}`, { method: 'POST' })
       .then(game => {
+        dernierColonne = col;
         afficherEtat(game);
-        // boucle frontend
-        if ((m === 4 || m === 5) && !game.partieTerminee) {
-          lancerBoucleIA(500, token);
+        if (!game.partieTerminee && (modeActuel === 2 || modeActuel === 3)) {
+          const token = loopToken;
+          setTimeout(() => {
+            if (loopToken !== token) return;
+            jouerUnCoupIA(token);
+          }, 700);
         }
       })
       .catch(console.error);
   },
-
-  colonneCliquee(col) {
-  if (modeActuel === 4 || modeActuel === 5) return;
-  apiFetch(`/api/play/${col}`, { method: 'POST' })
-    .then(game => {
-      dernierColonne = col;
-      afficherEtat(game);
-      // Si c'est au tour de l'IA, on attend avant de jouer
-      if (!game.partieTerminee && (modeActuel === 2 || modeActuel === 3)) {
-        const token = loopToken;
-        setTimeout(() => {
-          if (loopToken !== token) return;
-          jouerUnCoupIA(token);
-        }, 700); // délai visible pour lire l'annonce
-      }
-    })
-    .catch(console.error);
-},
 
   retourner() {
     apiFetch('/api/retirer', { method: 'POST' })
@@ -138,6 +174,7 @@ const api = {
         refreshBoard(game.board, game.wins);
         afficherMessage('Sélectionner un mode de jeu');
         modeActuel = 0;
+        couleurJoueur1 = 1;
         document.getElementById('board-overlay').style.display = 'flex';
         document.querySelectorAll('.btn-mode[data-mode]').forEach(b => b.classList.remove('active'));
         afficherScores(game.scores);
@@ -165,18 +202,18 @@ function lancerBoucleIA(delai, token) {
     if (!loopIA || loopToken !== token) { loopIA = false; return; }
     apiFetch('/api/playIA', { method: 'POST' })
       .then(game => {
-          if (game.dernierCoup !== undefined) dernierColonne = game.dernierCoup;
-          afficherEtat(game);
-          if (!game.partieTerminee && loopIA && loopToken === token) {
-            setTimeout(step, delai);
-          } else {
-            loopIA = false;
-          }
-        })
-        .catch(() => { loopIA = false; });
-      }
-      setTimeout(step, delai);
-    }
+        if (game.dernierCoup !== undefined) dernierColonne = game.dernierCoup;
+        afficherEtat(game);
+        if (!game.partieTerminee && loopIA && loopToken === token) {
+          setTimeout(step, delai);
+        } else {
+          loopIA = false;
+        }
+      })
+      .catch(() => { loopIA = false; });
+  }
+  setTimeout(step, delai);
+}
 
 // Affichage 
 function afficherEtat(game) {
@@ -184,7 +221,9 @@ function afficherEtat(game) {
   refreshBoard(game.board, game.wins);
   afficherScores(game.scores);
   if (game.partieTerminee) {
-    const couleur = game.joueurCourant === 1 ? 'Rouge' : 'Jaune';
+    // Le gagnant est le joueurCourant (il n'a pas changé après victoire)
+    const gagnant = game.joueurCourant;
+    const couleur = getCouleurNom(gagnant);
     afficherMessage(`Le joueur ${couleur} a gagné !`);
   } else if (game.message) {
     afficherMessage(game.message);
@@ -193,6 +232,14 @@ function afficherEtat(game) {
   }
 }
 
+// Retourne le nom de couleur affiché selon la couleur choisie par le joueur 1
+function getCouleurNom(joueur) {
+  // joueur 1 = couleurJoueur1, joueur 2 = l'autre
+  const estJoueur1 = joueur === 1;
+  const couleur1 = couleurJoueur1 === 1 ? 'Rouge' : 'Jaune';
+  const couleur2 = couleurJoueur1 === 1 ? 'Jaune' : 'Rouge';
+  return estJoueur1 ? couleur1 : couleur2;
+}
 
 function refreshBoard(board, wins) {
   if (!board) return;
@@ -201,8 +248,20 @@ function refreshBoard(board, wins) {
       const p = document.getElementById(`pion-${r}-${c}`);
       if (!p) continue;
       p.className = 'pion';
-      if (board[r][c] === 1) p.classList.add('j1');
-      else if (board[r][c] === 2) p.classList.add('j2');
+
+      if (board[r][c] !== 0) {
+        // board[r][c] = 1 ou 2 (numéro du joueur côté serveur)
+        // On adapte la classe CSS selon la couleur choisie
+        const valeur = board[r][c];
+        if (valeur === 1) {
+          // Joueur 1 côté serveur → afficher avec la couleur choisie
+          p.classList.add(couleurJoueur1 === 1 ? 'j1' : 'j2');
+        } else if (valeur === 2) {
+          // Joueur 2 côté serveur → afficher avec l'autre couleur
+          p.classList.add(couleurJoueur1 === 1 ? 'j2' : 'j1');
+        }
+      }
+
       if (wins) {
         let isWin = false;
         if (wins[r] !== undefined && !Array.isArray(wins[r])) {
@@ -210,7 +269,7 @@ function refreshBoard(board, wins) {
         } else if (Array.isArray(wins[r])) {
           isWin = wins[r][c] === true;
         } else if (Array.isArray(wins)) {
-          isWin = wins.some(w => Array.isArray(w) ? w[0]===r && w[1]===c : w.r===r && w.c===c);
+          isWin = wins.some(w => Array.isArray(w) ? w[0] === r && w[1] === c : w.r === r && w.c === c);
         }
         if (isWin) p.classList.add('win');
       }
@@ -242,13 +301,17 @@ function setModeActif(m) {
 function joueurMaj(joueurSuivant, dernierCoup) {
   if (!joueurSuivant) return;
 
-  const nom = j => j === 1 ? 'Rouge' : 'Jaune';
+  // Le joueur précédent est l'autre joueur
   const joueurPrecedent = joueurSuivant === 1 ? 2 : 1;
 
+  // On récupère les noms basés sur la couleur choisie
+  const nomSuivant = getCouleurNom(joueurSuivant);
+  const nomPrecedent = getCouleurNom(joueurPrecedent);
+
   if (dernierCoup !== undefined && dernierCoup !== null) {
-    const colonne = dernierCoup + 1; // index 0 → numéro 1
-    afficherMessage(`${nom(joueurPrecedent)} a joué colonne ${colonne} — ${nom(joueurSuivant)}, à vous de jouer`);
+    const colonne = dernierCoup + 1;
+    afficherMessage(`${nomPrecedent} a joué colonne ${colonne} — ${nomSuivant}, à vous de jouer`);
   } else {
-    afficherMessage(`Tour du joueur ${nom(joueurSuivant)}`);
+    afficherMessage(`Tour du joueur ${nomSuivant}`);
   }
 }
