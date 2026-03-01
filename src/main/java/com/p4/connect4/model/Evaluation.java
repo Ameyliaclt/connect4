@@ -1,4 +1,8 @@
 package com.p4.connect4.model;
+
+import org.springframework.stereotype.Component;
+
+@Component
 public class Evaluation{
     public int evaluer(int[][]tabl, int joueur){
         int score = 0;

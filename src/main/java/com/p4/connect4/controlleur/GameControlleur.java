@@ -14,17 +14,21 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.p4.connect4.model.Coup;
 import com.p4.connect4.model.fct_minmax;
+import com.p4.connect4.model.PartieDB;
+import com.p4.connect4.model.Sauvegarde;
 
 @CrossOrigin(origins = {"http://localhost:8080","https://connect4-fzwc.onrender.com"}, allowCredentials = "true")
 @RestController
 @RequestMapping("/api")
 public class GameControlleur {
-
-    private final fct_minmax mx = new fct_minmax();
+    @Autowired
+    private fct_minmax mx;
 
     private int profondeur = 4;
     @Autowired
     private Sessionjeu jeu;
+    @Autowired
+    private PartieDB dao;
 
     // Joueur humain
     @PostMapping("/play/{col}")
@@ -144,6 +148,21 @@ public Map<String, Object> play(@PathVariable int col) {
             resp.put("dernierCoup", dernier.getcol());
         } else {
             resp.put("dernierCoup", null);
+        }
+
+        //Sauvegarde dans la base 
+        if(jeu.getGame().getisPartieTerminee()){
+            try{
+                Sauvegarde sv = jeu.getGame().sauvegarder_p();
+                dao.sauvegarder(sv);
+                resp.put("sauvegarde","ok");
+                System.out.println("partie sauvegardé");
+            } catch (RuntimeException e){
+                if(e.getMessage().equals("Cette partie existe déjà")){
+                    System.out.println("La partie existe déjà");
+                }
+                resp.put("sauvegarde","erreur: "+ e.getMessage());
+            }
         }
 
         return resp;

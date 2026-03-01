@@ -1,10 +1,21 @@
 package com.p4.connect4.model;
 import java.util.ArrayList;
-
+import org.springframework.stereotype.Component;
+@Component
 public class fct_minmax {
-
-    Evaluation eval = new Evaluation(); 
+    PartieDB db;
+    Evaluation eval;
+    public fct_minmax(PartieDB db, Evaluation eval){
+        this.db = db;
+        this.eval = eval;
+    }
     public int meilleurCoup(int[][] plateau, int profondeur, ArrayList<Coup> historique) {
+        //recherche en BDD
+        int coupBD = db.chercherMeilleurCoup(historique);
+        if(coupBD != -1){
+            return coupBD;
+        }
+        //algo enclenché
         System.out.println("algo minmax enclenché");
         int meilleurScore = Integer.MIN_VALUE;
         int meilleurColonne = -1;
@@ -41,7 +52,7 @@ public class fct_minmax {
                 int row = simulCoup(tabl, col, 2);
                 if (row != -1) {
                     int score = minmax(tabl, prof - 1, false);
-                    annulCoup(tabl, row, col); // FIX 2 : on passe row précis
+                    annulCoup(tabl, row, col); 
                     if (score > meilleurScore) meilleurScore = score;
                 }
             }
