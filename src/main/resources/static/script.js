@@ -1,14 +1,14 @@
 const ROWS = 9, COLS = 9;
 let dernierColonne = null;
-let couleurJoueur1 = 1; // 1 = rouge (défaut), 2 = jaune
+let couleurJoueur1 = 1;
 
-//Grille 
+// ===================== GRILLE =====================
 (function buildGrid() {
   const colNums = document.getElementById('col-numbers');
   for (let c = 0; c < COLS; c++) {
     const btn = document.createElement('button');
     btn.textContent = c + 1;
-    btn.onclick = () => api.colonneCliquee(c);
+    btn.onclick = () => { if (!modePeinture) api.colonneCliquee(c); };
     colNums.appendChild(btn);
   }
   const grille = document.getElementById('grille');
@@ -16,7 +16,7 @@ let couleurJoueur1 = 1; // 1 = rouge (défaut), 2 = jaune
     for (let c = 0; c < COLS; c++) {
       const cell = document.createElement('div');
       cell.className = 'cell';
-      cell.onclick = () => api.colonneCliquee(c);
+      cell.onclick = () => { if (!modePeinture) api.colonneCliquee(c); };
       const pion = document.createElement('div');
       pion.className = 'pion';
       pion.id = `pion-${r}-${c}`;
@@ -33,7 +33,7 @@ let couleurJoueur1 = 1; // 1 = rouge (défaut), 2 = jaune
   }
 })();
 
-//Fenetre parametre
+// ===================== MODALES =====================
 function ouvrirParametres() {
   document.getElementById('modal-overlay').style.display = 'flex';
 }
@@ -41,70 +41,77 @@ function fermerParametres() {
   document.getElementById('modal-overlay').style.display = 'none';
 }
 
-// Fenetre choix couleur
 let _modePending = null;
 
 function ouvrirChoixCouleur(mode) {
   _modePending = mode;
-  // Met à jour l'état visuel du sélecteur selon la couleur actuelle
   document.querySelectorAll('.color-option').forEach(btn => {
     btn.classList.toggle('selected', parseInt(btn.dataset.color) === couleurJoueur1);
   });
   document.getElementById('modal-color').style.display = 'flex';
 }
-
 function fermerChoixCouleur() {
   document.getElementById('modal-color').style.display = 'none';
   _modePending = null;
 }
-
 function confirmerCouleur() {
   const mode = _modePending;
   fermerChoixCouleur();
   if (mode !== null) _lancerMode(mode);
 }
 
-function _lancerMode(mode) {
+// ===================== MODE =====================
+let modeActuel = 0;
+let loopIA = false;
+let loopToken = 0;
+
+function _lancerMode(mode, keepBoard = false) {
   modeActuel = mode;
   loopIA = false;
   const token = ++loopToken;
   setModeActif(mode);
   document.getElementById('board-overlay').style.display = 'none';
 
-  // On envoie la couleur choisie avec le mode
   apiFetch(`/api/setMode/${mode}?couleur=${couleurJoueur1}`, { method: 'POST' })
     .then(game => {
       afficherEtat(game);
-      if ((mode === 4 || mode === 5) && !game.partieTerminee) {
+      if (game.partieTerminee) return;
+
+      const joueur = game.joueurCourant;
+      const iaEstJoueur1 = (couleurJoueur1 === 2);
+      const iaEstJoueur2 = (couleurJoueur1 === 1);
+      const cEstTourIA = (mode === 2 || mode === 3) &&
+        ((iaEstJoueur1 && joueur === 1) || (iaEstJoueur2 && joueur === 2));
+
+      if (mode === 4 || mode === 5) {
         lancerBoucleIA(500, token);
+      } else if (cEstTourIA) {
+        setTimeout(() => jouerUnCoupIA(token), 500);
+      } else if (!keepBoard && (mode === 2 || mode === 3) && couleurJoueur1 === 2) {
+        setTimeout(() => jouerUnCoupIA(token), 500);
       }
     })
     .catch(console.error);
 }
 
 function apiFetch(url, options = {}) {
-  return fetch(url, {
-    ...options,
-    credentials: 'include'
-  }).then(r => r.json());
+  return fetch(url, { ...options, credentials: 'include' }).then(r => r.json());
 }
 
-//Etat
-let modeActuel = 0;
-let loopIA = false;
-let loopToken = 0;
-
-//API
+// ===================== API =====================
 const api = {
 
   setModeJ(m) {
-    // Modes avec choix de couleur : 1, 2, 3
+    const partieEnCours = modeActuel !== 0;
     if (m === 1 || m === 2 || m === 3) {
-      ouvrirChoixCouleur(m);
+      if (partieEnCours) {
+        _lancerMode(m, true);
+      } else {
+        ouvrirChoixCouleur(m);
+      }
     } else {
-      // Modes OvsO et IAvsIA : pas de choix
       couleurJoueur1 = 1;
-      _lancerMode(m);
+      _lancerMode(m, false);
     }
   },
 
@@ -126,15 +133,11 @@ const api = {
   },
 
   retourner() {
-    apiFetch('/api/retirer', { method: 'POST' })
-      .then(afficherEtat)
-      .catch(console.error);
+    apiFetch('/api/retirer', { method: 'POST' }).then(afficherEtat).catch(console.error);
   },
 
   remettre() {
-    apiFetch('/api/remettre', { method: 'POST' })
-      .then(afficherEtat)
-      .catch(console.error);
+    apiFetch('/api/remettre', { method: 'POST' }).then(afficherEtat).catch(console.error);
   },
 
   pause() {
@@ -166,6 +169,29 @@ const api = {
       .catch(console.error);
   },
 
+  suggestion() {
+    const prof = parseInt(document.getElementById('num-prof').value) || 4;
+    apiFetch(`/api/analyse?profondeur=${prof}`, { method: 'POST' })
+      .then(game => {
+        const scores = game.scores;
+        if (!scores) return;
+        let bestCol = -1, bestScore = -Infinity;
+        scores.forEach((s, c) => {
+          if (s !== null && s !== undefined && s > bestScore) {
+            bestScore = s; bestCol = c;
+          }
+        });
+        afficherScores(scores);
+        document.querySelectorAll('.score-cell').forEach(el => el.classList.remove('suggestion'));
+        if (bestCol !== -1) {
+          const el = document.getElementById(`sc-${bestCol}`);
+          if (el) el.classList.add('suggestion');
+          afficherMessage(`💡 L'IA jouerait colonne ${bestCol + 1}`);
+        }
+      })
+      .catch(console.error);
+  },
+
   rejouer() {
     loopIA = false;
     loopToken++;
@@ -180,10 +206,38 @@ const api = {
         afficherScores(game.scores);
       })
       .catch(console.error);
+  },
+
+  suggestionPeinture() {
+    const prof = parseInt(document.getElementById('num-prof').value) || 4;
+    apiFetch('/api/setPlateau', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(grillePeinte)
+    })
+    .then(() => apiFetch(`/api/analyse?profondeur=${prof}`, { method: 'POST' }))
+    .then(game => {
+      const scores = game.scores;
+      if (!scores) return;
+      let bestCol = -1, bestScore = -Infinity;
+      scores.forEach((s, c) => {
+        if (s !== null && s !== undefined && s > bestScore) {
+          bestScore = s; bestCol = c;
+        }
+      });
+      afficherScores(scores);
+      document.querySelectorAll('.score-cell').forEach(el => el.classList.remove('suggestion'));
+      if (bestCol !== -1) {
+        const el = document.getElementById(`sc-${bestCol}`);
+        if (el) el.classList.add('suggestion');
+        afficherMessage(`🤖 L'IA jouerait colonne ${bestCol + 1} (score : ${bestScore})`);
+      }
+    })
+    .catch(console.error);
   }
 };
 
-//jvsIA et jvsO
+// ===================== IA =====================
 function jouerUnCoupIA(token) {
   if (loopToken !== token) return;
   apiFetch('/api/playIA', { method: 'POST' })
@@ -194,7 +248,6 @@ function jouerUnCoupIA(token) {
     .catch(console.error);
 }
 
-//IAvsIA et OvsO
 function lancerBoucleIA(delai, token) {
   if (loopIA) return;
   loopIA = true;
@@ -215,13 +268,116 @@ function lancerBoucleIA(delai, token) {
   setTimeout(step, delai);
 }
 
-// Affichage 
+// ===================== MODE PEINTURE =====================
+let modePeinture = false;
+let pinceauActuel = 1;
+let grillePeinte = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+const _paintHandlers = new Map();
+
+function togglePeinture() {
+  modePeinture = !modePeinture;
+  const boardWrap = document.getElementById('board-wrap');
+  const btnIA = document.getElementById('btn-ia-peint');
+  const btnPaint = document.getElementById('btn-paint-mode');
+
+  if (modePeinture) {
+    // Copier l'état actuel du board dans grillePeinte
+    for (let r = 0; r < ROWS; r++)
+      for (let c = 0; c < COLS; c++) {
+        const p = document.getElementById(`pion-${r}-${c}`);
+        grillePeinte[r][c] = p.classList.contains('j1') ? 1
+                            : p.classList.contains('j2') ? 2 : 0;
+      }
+    boardWrap.classList.add('paint-mode');
+    btnIA.style.display = 'block';
+    btnPaint.textContent = ' Fin peinture ';
+    afficherMessage('🎨 Mode peinture — cliquez/glissez sur les cases');
+    attachPaintListeners();
+
+  } else {
+    boardWrap.classList.remove('paint-mode');
+    btnIA.style.display = 'none';
+    btnPaint.textContent = '🎨 Peindre';
+    detachPaintListeners();
+
+    // Envoyer la grille peinte comme état officiel du serveur
+    apiFetch('/api/setPlateau', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(grillePeinte)
+    })
+    .then(game => {
+      afficherEtat(game);
+      if (modeActuel !== 0) {
+        setModeActif(modeActuel);
+        const noms = ['', 'JvsJ', 'JvsO', 'JvsO_IA', 'OvsO', 'IAvsIA'];
+        afficherMessage(`Situation chargée — continuez en ${noms[modeActuel]} !`);
+        const token = loopToken;
+        const joueur = game.joueurCourant;
+        const iaEstJoueur1 = (couleurJoueur1 === 2);
+        const iaEstJoueur2 = (couleurJoueur1 === 1);
+        const cEstTourIA = (modeActuel === 2 || modeActuel === 3) &&
+          ((iaEstJoueur1 && joueur === 1) || (iaEstJoueur2 && joueur === 2));
+        if (modeActuel === 4 || modeActuel === 5) {
+          lancerBoucleIA(500, token);
+        } else if (cEstTourIA) {
+          setTimeout(() => jouerUnCoupIA(token), 500);
+        }
+      } else {
+        document.getElementById('board-overlay').style.display = 'flex';
+        afficherMessage('Situation chargée — choisissez un mode pour continuer');
+      }
+    })
+    .catch(console.error);
+  }
+}
+
+function setPinceau(val) {
+  pinceauActuel = val;
+  document.getElementById('brush-rouge').classList.toggle('active', val === 1);
+  document.getElementById('brush-jaune').classList.toggle('active', val === 2);
+  document.getElementById('brush-gomme').classList.toggle('active', val === 0);
+}
+
+function peindreCase(r, c) {
+  grillePeinte[r][c] = pinceauActuel;
+  const p = document.getElementById(`pion-${r}-${c}`);
+  p.className = 'pion';
+  if (pinceauActuel === 1) p.classList.add('j1');
+  else if (pinceauActuel === 2) p.classList.add('j2');
+}
+
+function attachPaintListeners() {
+  let isPainting = false;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const cell = document.getElementById(`pion-${r}-${c}`).parentElement;
+      const mousedown = (e) => { e.preventDefault(); isPainting = true; peindreCase(r, c); };
+      const mouseover  = () => { if (isPainting) peindreCase(r, c); };
+      const mouseup    = () => { isPainting = false; };
+      cell.addEventListener('mousedown', mousedown);
+      cell.addEventListener('mouseover', mouseover);
+      document.addEventListener('mouseup', mouseup);
+      _paintHandlers.set(`${r}-${c}`, { cell, mousedown, mouseover, mouseup });
+    }
+  }
+}
+
+function detachPaintListeners() {
+  _paintHandlers.forEach(({ cell, mousedown, mouseover, mouseup }) => {
+    cell.removeEventListener('mousedown', mousedown);
+    cell.removeEventListener('mouseover', mouseover);
+    document.removeEventListener('mouseup', mouseup);
+  });
+  _paintHandlers.clear();
+}
+
+// ===================== AFFICHAGE =====================
 function afficherEtat(game) {
   if (!game) return;
   refreshBoard(game.board, game.wins);
   afficherScores(game.scores);
   if (game.partieTerminee) {
-    // Le gagnant est le joueurCourant (il n'a pas changé après victoire)
     const gagnant = game.joueurCourant;
     const couleur = getCouleurNom(gagnant);
     afficherMessage(`Le joueur ${couleur} a gagné !`);
@@ -232,9 +388,7 @@ function afficherEtat(game) {
   }
 }
 
-// Retourne le nom de couleur affiché selon la couleur choisie par le joueur 1
 function getCouleurNom(joueur) {
-  // joueur 1 = couleurJoueur1, joueur 2 = l'autre
   const estJoueur1 = joueur === 1;
   const couleur1 = couleurJoueur1 === 1 ? 'Rouge' : 'Jaune';
   const couleur2 = couleurJoueur1 === 1 ? 'Jaune' : 'Rouge';
@@ -248,19 +402,9 @@ function refreshBoard(board, wins) {
       const p = document.getElementById(`pion-${r}-${c}`);
       if (!p) continue;
       p.className = 'pion';
-
-      if (board[r][c] !== 0) {
-        // board[r][c] = 1 ou 2 (numéro du joueur côté serveur)
-        // On adapte la classe CSS selon la couleur choisie
-        const valeur = board[r][c];
-        if (valeur === 1) {
-          // Joueur 1 côté serveur → afficher avec la couleur choisie
-          p.classList.add(couleurJoueur1 === 1 ? 'j1' : 'j2');
-        } else if (valeur === 2) {
-          // Joueur 2 côté serveur → afficher avec l'autre couleur
-          p.classList.add(couleurJoueur1 === 1 ? 'j2' : 'j1');
-        }
-      }
+      const valeur = board[r][c];
+      if (valeur === 1) p.classList.add('j1');
+      else if (valeur === 2) p.classList.add('j2');
 
       if (wins) {
         let isWin = false;
@@ -300,17 +444,11 @@ function setModeActif(m) {
 
 function joueurMaj(joueurSuivant, dernierCoup) {
   if (!joueurSuivant) return;
-
-  // Le joueur précédent est l'autre joueur
   const joueurPrecedent = joueurSuivant === 1 ? 2 : 1;
-
-  // On récupère les noms basés sur la couleur choisie
   const nomSuivant = getCouleurNom(joueurSuivant);
   const nomPrecedent = getCouleurNom(joueurPrecedent);
-
   if (dernierCoup !== undefined && dernierCoup !== null) {
-    const colonne = dernierCoup + 1;
-    afficherMessage(`${nomPrecedent} a joué colonne ${colonne} — ${nomSuivant}, à vous de jouer`);
+    afficherMessage(`${nomPrecedent} a joué colonne ${dernierCoup + 1} — ${nomSuivant}, à vous de jouer`);
   } else {
     afficherMessage(`Tour du joueur ${nomSuivant}`);
   }

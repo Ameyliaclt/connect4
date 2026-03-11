@@ -6,11 +6,11 @@ public class Model_connect4 {
     public int confiance = 1;
     int rows;
     int cols;
-    int [][] tabl;
+    public int [][] tabl;
     public boolean pause;
     boolean[][] casesG;
-    int joueurCourant;
-    boolean partieTerminee;
+    public int joueurCourant;
+    public boolean partieTerminee;
     public int mode_j;
     public ArrayList<Coup> enregistrement_cp = new ArrayList<>();
     ArrayList<Coup> cp_annules = new ArrayList<>();

@@ -330,3 +330,58 @@ body {
   transition: background 0.15s, color 0.15s;
 }
 .btn-annuler:hover { background: #e5e8f4; color: #333; }
+
+.score-cell.suggestion {
+  background-color: #f0c040;
+  color: #000;
+  font-weight: bold;
+  border-radius: 4px;
+  outline: 2px solid orange;
+}
+
+/* Mode peinture */
+#board-wrap.paint-mode {
+  outline: 3px solid #f0c040;
+  border-radius: 8px;
+}
+#board-wrap.paint-mode .cell {
+  cursor: crosshair;
+}
+#paint-toolbar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.btn-brush {
+  padding: 5px 8px;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  background: #f0f2f8;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-brush.active {
+  border-color: var(--bleu);
+  background: #e0e8ff;
+}
+.color-preview {
+  width: 18px;
+  height: 18px;
+  display: inline-block;
+  border-radius: 50%;
+}
+.rouge-preview { background: var(--rouge, #e63946); }
+.jaune-preview { background: #f0c040; }
+
+/* Score suggestion */
+.score-cell.suggestion {
+  background-color: #f0c040;
+  color: #000;
+  font-weight: bold;
+  border-radius: 4px;
+  outline: 2px solid orange;
+}

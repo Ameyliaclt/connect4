@@ -8,17 +8,18 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.p4.connect4.model.Coup;
-import com.p4.connect4.model.fct_minmax;
 import com.p4.connect4.model.PartieDB;
 import com.p4.connect4.model.Sauvegarde;
+import com.p4.connect4.model.fct_minmax;
 
 @CrossOrigin(origins = {"http://localhost:8080","https://connect4-fzwc.onrender.com"}, allowCredentials = "true")
-@RestController
+@RestController //gestion des requêtes HTML
 @RequestMapping("/api")
 public class GameControlleur {
     @Autowired
@@ -174,5 +175,25 @@ public Map<String, Object> play(@PathVariable int col) {
             for (int c = 0; c < jeu.getGame().getCols(); c++)
                 wins[r][c] = jeu.getGame().getCaseG(r, c);
         return wins;
+    }
+
+    @PostMapping("/setPlateau")
+    public Map<String, Object> setPlateau(@RequestBody int[][] grille) {
+        int rows = grille.length;
+        int cols = grille[0].length;
+        int count1 = 0, count2 = 0;
+        for (int[] row : grille)
+            for (int v : row) {
+                if (v == 1) count1++;
+                else if (v == 2) count2++;
+            }
+        int joueur = (count1 <= count2) ? 1 : 2;
+        jeu.getGame().redemarrer_p();
+        for (int r = 0; r < rows; r++)
+            for (int c = 0; c < cols; c++)
+            jeu.getGame().tabl[r][c] = grille[r][c];
+        jeu.getGame().joueurCourant = joueur;
+        jeu.getGame().partieTerminee = false;
+        return buildResponse();
     }
 }

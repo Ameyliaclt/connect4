@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- Modal paramètres — EN DEHORS de #app pour éviter overflow:hidden -->
+  <!-- Modal paramètres -->
   <div id="modal-overlay" onclick="fermerParametres()">
     <div id="modal-content" onclick="event.stopPropagation()">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:var(--bleu);letter-spacing:0.06em;">Paramètres</div>
@@ -18,7 +18,7 @@
     </div>
   </div>
 
-  <!-- Modal choix couleur — EN DEHORS de #app -->
+  <!-- Modal choix couleur -->
   <div id="modal-color" onclick="fermerChoixCouleur()">
     <div id="modal-color-content" onclick="event.stopPropagation()">
       <div class="modal-color-title">Choisir votre couleur</div>
@@ -31,7 +31,6 @@
         ">
           <span class="color-preview rouge-preview"></span>
           <span class="color-label">Rouge</span>
-          <span class="color-sublabel">Commence en premier</span>
         </button>
         <button class="color-option color-jaune" data-color="2" onclick="
           document.querySelectorAll('.color-option').forEach(b => b.classList.remove('selected'));
@@ -40,7 +39,6 @@
         ">
           <span class="color-preview jaune-preview"></span>
           <span class="color-label">Jaune</span>
-          <span class="color-sublabel">Commence en premier</span>
         </button>
       </div>
       <div class="modal-color-actions">
@@ -60,13 +58,29 @@
       </div>
       <input type="number" id="num-prof" placeholder="ex: 4" min="1" max="12">
       <button class="btn-mode" onclick="api.analyse()">Analyse</button>
+      <button class="btn-mode" onclick="api.suggestion()"> IA jouerait </button>
+
       <span class="sidebar-label">Mode de jeu</span>
       <button class="btn-mode" data-mode="1" onclick="api.setModeJ(1)">JvsJ</button>
       <button class="btn-mode" data-mode="2" onclick="api.setModeJ(2)">JvsO</button>
       <button class="btn-mode" data-mode="3" onclick="api.setModeJ(3)">JvsO_IA</button>
       <button class="btn-mode" data-mode="4" onclick="api.setModeJ(4)">OvsO</button>
       <button class="btn-mode" data-mode="5" onclick="api.setModeJ(5)">IAvsIA</button>
+
+      <span class="sidebar-label">Mode peinture</span>
+      <div id="paint-toolbar">
+        <button id="brush-rouge" class="btn-brush active" onclick="setPinceau(1)" title="Pion Rouge">
+          <span class="color-preview rouge-preview"></span>
+        </button>
+        <button id="brush-jaune" class="btn-brush" onclick="setPinceau(2)" title="Pion Jaune">
+          <span class="color-preview jaune-preview"></span>
+        </button>
+        <button id="brush-gomme" class="btn-brush" onclick="setPinceau(0)" title="Gomme"> ↩️ </button>
+      </div>
+      <button id="btn-paint-mode" class="btn-mode" onclick="togglePeinture()">🎨 Peindre</button>
+      <button id="btn-ia-peint" class="btn-mode" onclick="api.suggestionPeinture()" style="display:none;">Analyse prochain coup IA</button>
       <div style="flex:1;"></div>
+      <span class="sidebar-label">Rejouer</span>
       <button onclick="ouvrirParametres()" style="font-size:0.9rem;width:fit-content;padding:3px 8px;border-radius:4px;align-self:flex-end;line-height:1;border:1px solid #ccc;background:#f0f2f8;cursor:pointer;">⚙️</button>
     </div>
 
