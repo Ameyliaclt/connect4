@@ -1,6 +1,7 @@
 const ROWS = 9, COLS = 9;
 let dernierColonne = null;
 let couleurJoueur1 = 1;
+let partieEstTerminee = false;
 
 // ===================== GRILLE =====================
 (function buildGrid() {
@@ -102,18 +103,29 @@ function apiFetch(url, options = {}) {
 const api = {
 
   setModeJ(m) {
-    const partieEnCours = modeActuel !== 0;
-    if (m === 1 || m === 2 || m === 3) {
-      if (partieEnCours) {
-        _lancerMode(m, true);
-      } else {
-        ouvrirChoixCouleur(m);
+  if (!partieEstTerminee && modeActuel !== 0) return;
+  partieEstTerminee = false;
+  loopIA = false;
+  const token = ++loopToken;
+  couleurJoueur1 = 1;
+  modeActuel = m;
+  setModeActif(m);
+  document.getElementById('board-overlay').style.display = 'none';
+
+  // D'abord reset, puis setMode, puis lancer la boucle
+  apiFetch('/api/reset', { method: 'POST' })
+    .then(() => apiFetch(`/api/setMode/${m}?couleur=${couleurJoueur1}`, { method: 'POST' }))
+    .then(game => {
+      if (loopToken !== token) return;
+      refreshBoard(game.board, game.wins);
+      afficherScores(game.scores);
+      afficherMessage('Nouvelle partie !');
+      if (!game.partieTerminee && (m === 4 || m === 5)) {
+        lancerBoucleIA(500, token);
       }
-    } else {
-      couleurJoueur1 = 1;
-      _lancerMode(m, false);
-    }
-  },
+    })
+    .catch(console.error);
+},
 
   colonneCliquee(col) {
     if (modeActuel === 4 || modeActuel === 5) return;
@@ -255,6 +267,7 @@ function lancerBoucleIA(delai, token) {
     if (!loopIA || loopToken !== token) { loopIA = false; return; }
     apiFetch('/api/playIA', { method: 'POST' })
       .then(game => {
+        if (loopToken !== token) return; // ← ignore les réponses périmées
         if (game.dernierCoup !== undefined) dernierColonne = game.dernierCoup;
         afficherEtat(game);
         if (!game.partieTerminee && loopIA && loopToken === token) {
@@ -375,6 +388,7 @@ function detachPaintListeners() {
 // ===================== AFFICHAGE =====================
 function afficherEtat(game) {
   if (!game) return;
+  if (game.partieTerminee) partieEstTerminee = true;
   refreshBoard(game.board, game.wins);
   afficherScores(game.scores);
   if (game.partieTerminee) {
