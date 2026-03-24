@@ -56,7 +56,7 @@
         <button class="btn-action" onclick="api.pause()">⏸</button>
         <button class="btn-action" onclick="api.play()">▷</button>
       </div>
-      <input type="number" id="num-prof" placeholder="ex: 4" min="1" max="12">
+      <input type="number" id="num-prof" placeholder="ex: 6" min="1" max="12">
       <button class="btn-mode" onclick="api.analyse()">Analyse</button>
       <button class="btn-mode" onclick="api.suggestion()"> IA jouerait </button>
 
@@ -90,6 +90,14 @@
       <div id="board-overlay">Choisir un mode de jeu</div>
       <div id="col-numbers"></div>
       <div id="grille"></div>
+      <!-- Barre de progression IA -->
+      <div id="ia-progress-container">
+        <span id="ia-progress-label">IA réfléchit…</span>
+        <div id="ia-progress-track">
+          <div id="ia-progress-bar"></div>
+        </div>
+        <span id="ia-progress-text">0%</span>
+      </div>
     </div>
     <div style="text-align:center;padding:8px;font-family:'DM Mono',monospace;font-size:0.8rem;color:#888;letter-spacing:0.05em;background:transparent;grid-column:2;align-self:end;">
       Réalisé par <span style="color:var(--bleu);font-weight:500;">Ameylia Clement</span>

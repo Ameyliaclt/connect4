@@ -8,7 +8,7 @@ public class Model_connect4 {
     int cols;
     public int [][] tabl;
     public boolean pause;
-    boolean[][] casesG;
+    public boolean [][] casesG;
     public int joueurCourant;
     public boolean partieTerminee;
     public int mode_j;

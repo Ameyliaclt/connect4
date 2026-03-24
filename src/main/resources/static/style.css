@@ -155,6 +155,14 @@ body {
 .btn-mode { margin:2px 0; padding:7px 8px; cursor:pointer; width:100%; }
 .btn-mode.active { background: var(--bleu); color: #fff; border-color: var(--bleu); }
 
+.sidebar-label {
+  font-size: 0.7rem;
+  color: #888;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
 /* === Modal paramètres === */
 #modal-overlay {
   display: none;
@@ -368,20 +376,56 @@ body {
   border-color: var(--bleu);
   background: #e0e8ff;
 }
-.color-preview {
+
+/* Petits previews dans la sidebar (pinceaux) */
+#paint-toolbar .color-preview {
   width: 18px;
   height: 18px;
-  display: inline-block;
   border-radius: 50%;
+  display: inline-block;
+  box-shadow: none;
 }
-.rouge-preview { background: var(--rouge, #e63946); }
-.jaune-preview { background: #f0c040; }
 
-/* Score suggestion */
-.score-cell.suggestion {
-  background-color: #f0c040;
-  color: #000;
-  font-weight: bold;
-  border-radius: 4px;
-  outline: 2px solid orange;
+/* === Barre de progression IA === */
+#ia-progress-container {
+  display: none; /* affiché via JS */
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.35);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+#ia-progress-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.55);
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+}
+
+#ia-progress-track {
+  flex: 1;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+#ia-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: var(--jaune);
+  border-radius: 3px;
+  transition: width 0.05s linear;
+  box-shadow: 0 0 8px rgba(255, 214, 10, 0.5);
+}
+
+#ia-progress-text {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 0.95rem;
+  color: var(--jaune);
+  min-width: 38px;
+  text-align: right;
+  letter-spacing: 0.05em;
 }

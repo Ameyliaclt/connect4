@@ -1,5 +1,6 @@
 package com.p4.connect4.controlleur;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -25,7 +26,7 @@ public class GameControlleur {
     @Autowired
     private fct_minmax mx;
 
-    private int profondeur = 4;
+    private int profondeur = 6;
     @Autowired
     private Sessionjeu jeu;
     @Autowired
@@ -181,6 +182,8 @@ public Map<String, Object> play(@PathVariable int col) {
     public Map<String, Object> setPlateau(@RequestBody int[][] grille) {
         int rows = grille.length;
         int cols = grille[0].length;
+
+        // Compter les pions pour déterminer le joueur courant
         int count1 = 0, count2 = 0;
         for (int[] row : grille)
             for (int v : row) {
@@ -188,12 +191,69 @@ public Map<String, Object> play(@PathVariable int col) {
                 else if (v == 2) count2++;
             }
         int joueur = (count1 <= count2) ? 1 : 2;
+
+        // Réinitialiser puis charger la grille peinte
         jeu.getGame().redemarrer_p();
         for (int r = 0; r < rows; r++)
             for (int c = 0; c < cols; c++)
-            jeu.getGame().tabl[r][c] = grille[r][c];
+                jeu.getGame().tabl[r][c] = grille[r][c];
+
         jeu.getGame().joueurCourant = joueur;
         jeu.getGame().partieTerminee = false;
+
+        // Remettre les cases gagnantes à zéro avant de recalculer
+        for (int r = 0; r < rows; r++)
+            for (int c = 0; c < cols; c++)
+                jeu.getGame().casesG[r][c] = false;
+
+        // Reconstruire un historique minimal depuis la grille peinte
+        // (nécessaire pour que meilleurCoup et l'historique fonctionnent)
+        jeu.getGame().enregistrement_cp.clear();
+        // On ajoute joueur 1 en premier, joueur 2 en second, en alternant
+        // On scanne de bas en haut pour respecter la gravité du puissance 4
+        ArrayList<int[]> pionsJ1 = new ArrayList<>();
+        ArrayList<int[]> pionsJ2 = new ArrayList<>();
+        for (int c = 0; c < cols; c++) {
+            for (int r = rows - 1; r >= 0; r--) {
+                if (grille[r][c] == 1) pionsJ1.add(new int[]{r, c});
+                else if (grille[r][c] == 2) pionsJ2.add(new int[]{r, c});
+            }
+        }
+        // Alterner J1/J2 pour reconstruire un historique cohérent
+        int maxCoups = Math.max(pionsJ1.size(), pionsJ2.size());
+        for (int i = 0; i < maxCoups; i++) {
+            if (i < pionsJ1.size()) {
+                int[] p = pionsJ1.get(i);
+                jeu.getGame().enregistrement_cp.add(new Coup(p[1], p[0], 1));
+            }
+            if (i < pionsJ2.size()) {
+                int[] p = pionsJ2.get(i);
+                jeu.getGame().enregistrement_cp.add(new Coup(p[1], p[0], 2));
+            }
+        }
+
+        // Vérifier victoire et match nul sur l'état actuel de la grille
+        // On teste chaque case occupée — checkvictoire marque aussi casesG
+        boolean victoireTrouvee = false;
+        outer:
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                if (grille[r][c] != 0) {
+                    if (jeu.getGame().checkvictoire(r, c)) {
+                        jeu.getGame().partieTerminee = true;
+                        // joueurCourant doit pointer sur le gagnant pour l'affichage
+                        jeu.getGame().joueurCourant = grille[r][c];
+                        victoireTrouvee = true;
+                        break outer;
+                    }
+                }
+            }
+        }
+
+        if (!victoireTrouvee && jeu.getGame().ismtchnul()) {
+            jeu.getGame().partieTerminee = true;
+        }
+
         return buildResponse();
     }
 }

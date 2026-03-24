@@ -143,6 +143,7 @@ const api = {
   pause() {
     loopIA = false;
     loopToken++;
+    arreterProgression(true);
     apiFetch('/api/pause', { method: 'POST' })
       .then(game => afficherMessage(game.message || 'Pause'))
       .catch(console.error);
@@ -195,6 +196,7 @@ const api = {
   rejouer() {
     loopIA = false;
     loopToken++;
+    arreterProgression(true);
     apiFetch('/api/reset', { method: 'POST' })
       .then(game => {
         refreshBoard(game.board, game.wins);
@@ -237,24 +239,103 @@ const api = {
   }
 };
 
+// ===================== BARRE DE PROGRESSION IA =====================
+// Durée estimée en ms selon la profondeur (calibrée pour 9x9 + alpha-bêta)
+function dureeEstimeeIA(profondeur) {
+  const base = {
+    1: 50,   2: 100,    3: 200,    4: 500,
+    5: 1200, 6: 2500,   7: 5000,   8: 12000,
+    9: 30000, 10: 70000, 11: 150000, 12: 300000
+  };
+  return base[profondeur] ?? 500;
+}
+
+let _progressTimer = null;
+let _progressStart = null;
+
+function demarrerProgression(profondeur) {
+  const conteneur = document.getElementById('ia-progress-container');
+  const barre     = document.getElementById('ia-progress-bar');
+  const texte     = document.getElementById('ia-progress-text');
+  if (!conteneur || !barre || !texte) return;
+
+  // Stopper une progression éventuelle en cours
+  arreterProgression(false);
+
+  const duree = dureeEstimeeIA(profondeur);
+  _progressStart = performance.now();
+  conteneur.style.display = 'flex';
+  barre.style.width = '0%';
+  texte.textContent = '0%';
+
+  // Mise à jour toutes les 50ms
+  // Courbe 1 - e^(-3t/T) : monte vite au début, ralentit vers 95%
+  // Elle ne peut jamais atteindre 100% seule — c'est le vrai résultat qui clôt
+  _progressTimer = setInterval(() => {
+    const elapsed = performance.now() - _progressStart;
+    const ratio = elapsed / duree;
+    const pct = Math.min(95, Math.round((1 - Math.exp(-3 * ratio)) * 100));
+    barre.style.width = pct + '%';
+    texte.textContent = pct + '%';
+  }, 50);
+}
+
+function finirProgression() {
+  // Le résultat est arrivé : snap à 100% puis disparition
+  arreterProgression(false);
+  const conteneur = document.getElementById('ia-progress-container');
+  const barre     = document.getElementById('ia-progress-bar');
+  const texte     = document.getElementById('ia-progress-text');
+  if (!conteneur || !barre || !texte) return;
+
+  barre.style.width = '100%';
+  texte.textContent = '100%';
+  setTimeout(() => arreterProgression(true), 400);
+}
+
+function arreterProgression(cacher = true) {
+  if (_progressTimer) {
+    clearInterval(_progressTimer);
+    _progressTimer = null;
+  }
+  if (cacher) {
+    const conteneur = document.getElementById('ia-progress-container');
+    if (conteneur) conteneur.style.display = 'none';
+  }
+}
+
 // ===================== IA =====================
 function jouerUnCoupIA(token) {
   if (loopToken !== token) return;
+
+  const prof = parseInt(document.getElementById('num-prof').value) || 4;
+  demarrerProgression(prof);
+
   apiFetch('/api/playIA', { method: 'POST' })
     .then(game => {
+      finirProgression();
       if (game.dernierCoup !== undefined) dernierColonne = game.dernierCoup;
       afficherEtat(game);
     })
-    .catch(console.error);
+    .catch(err => {
+      arreterProgression(true);
+      console.error(err);
+    });
 }
 
 function lancerBoucleIA(delai, token) {
   if (loopIA) return;
   loopIA = true;
+
   function step() {
-    if (!loopIA || loopToken !== token) { loopIA = false; return; }
+    if (!loopIA || loopToken !== token) { loopIA = false; arreterProgression(true); return; }
+
+    const prof = parseInt(document.getElementById('num-prof').value) || 4;
+    demarrerProgression(prof);
+
     apiFetch('/api/playIA', { method: 'POST' })
       .then(game => {
+        finirProgression();
         if (game.dernierCoup !== undefined) dernierColonne = game.dernierCoup;
         afficherEtat(game);
         if (!game.partieTerminee && loopIA && loopToken === token) {
@@ -263,7 +344,10 @@ function lancerBoucleIA(delai, token) {
           loopIA = false;
         }
       })
-      .catch(() => { loopIA = false; });
+      .catch(() => {
+        loopIA = false;
+        arreterProgression(true);
+      });
   }
   setTimeout(step, delai);
 }
@@ -277,11 +361,10 @@ const _paintHandlers = new Map();
 function togglePeinture() {
   modePeinture = !modePeinture;
   const boardWrap = document.getElementById('board-wrap');
-  const btnIA = document.getElementById('btn-ia-peint');
-  const btnPaint = document.getElementById('btn-paint-mode');
+  const btnIA     = document.getElementById('btn-ia-peint');
+  const btnPaint  = document.getElementById('btn-paint-mode');
 
   if (modePeinture) {
-    // Copier l'état actuel du board dans grillePeinte
     for (let r = 0; r < ROWS; r++)
       for (let c = 0; c < COLS; c++) {
         const p = document.getElementById(`pion-${r}-${c}`);
@@ -300,7 +383,6 @@ function togglePeinture() {
     btnPaint.textContent = '🎨 Peindre';
     detachPaintListeners();
 
-    // Envoyer la grille peinte comme état officiel du serveur
     apiFetch('/api/setPlateau', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -445,7 +527,7 @@ function setModeActif(m) {
 function joueurMaj(joueurSuivant, dernierCoup) {
   if (!joueurSuivant) return;
   const joueurPrecedent = joueurSuivant === 1 ? 2 : 1;
-  const nomSuivant = getCouleurNom(joueurSuivant);
+  const nomSuivant   = getCouleurNom(joueurSuivant);
   const nomPrecedent = getCouleurNom(joueurPrecedent);
   if (dernierCoup !== undefined && dernierCoup !== null) {
     afficherMessage(`${nomPrecedent} a joué colonne ${dernierCoup + 1} — ${nomSuivant}, à vous de jouer`);
