@@ -65,6 +65,11 @@ let modeActuel = 0;
 let loopIA = false;
 let loopToken = 0;
 
+function getProfondeur() {
+  const val = parseInt(document.getElementById('num-prof').value);
+  return (isNaN(val) || val < 1) ? 4 : Math.min(val, 12);
+}
+
 function _lancerMode(mode, keepBoard = false) {
   modeActuel = mode;
   loopIA = false;
@@ -72,7 +77,8 @@ function _lancerMode(mode, keepBoard = false) {
   setModeActif(mode);
   document.getElementById('board-overlay').style.display = 'none';
 
-  apiFetch(`/api/setMode/${mode}?couleur=${couleurJoueur1}`, { method: 'POST' })
+  const prof = getProfondeur();
+  apiFetch(`/api/setMode/${mode}?couleur=${couleurJoueur1}&profondeur=${prof}`, { method: 'POST' })
     .then(game => {
       afficherEtat(game);
       if (game.partieTerminee) return;
@@ -163,15 +169,14 @@ const api = {
   },
 
   analyse() {
-    const prof = parseInt(document.getElementById('num-prof').value);
-    if (isNaN(prof) || prof < 1) return;
+    const prof = getProfondeur();
     apiFetch(`/api/analyse?profondeur=${prof}`, { method: 'POST' })
       .then(game => afficherScores(game.scores))
       .catch(console.error);
   },
 
   suggestion() {
-    const prof = parseInt(document.getElementById('num-prof').value) || 4;
+    const prof = getProfondeur();
     apiFetch(`/api/analyse?profondeur=${prof}`, { method: 'POST' })
       .then(game => {
         const scores = game.scores;
@@ -193,10 +198,41 @@ const api = {
       .catch(console.error);
   },
 
+  predire() {
+    const prof = getProfondeur();
+    const btn = document.getElementById('btn-predire');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = '⏳ Calcul…';
+    }
+
+    // Barre de progression pendant le calcul
+    demarrerProgression(prof);
+
+    apiFetch(`/api/predire?profondeur=${prof}`, { method: 'POST' })
+      .then(pred => {
+        finirProgression();
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = '🔮 Prédire';
+        }
+        afficherPrediction(pred);
+      })
+      .catch(err => {
+        arreterProgression(true);
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = '🔮 Prédire';
+        }
+        console.error(err);
+      });
+  },
+
   rejouer() {
     loopIA = false;
     loopToken++;
     arreterProgression(true);
+    cacherPrediction();
     apiFetch('/api/reset', { method: 'POST' })
       .then(game => {
         refreshBoard(game.board, game.wins);
@@ -211,7 +247,7 @@ const api = {
   },
 
   suggestionPeinture() {
-    const prof = parseInt(document.getElementById('num-prof').value) || 4;
+    const prof = getProfondeur();
     apiFetch('/api/setPlateau', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -239,8 +275,48 @@ const api = {
   }
 };
 
+// ===================== AFFICHAGE PRÉDICTION =====================
+function afficherPrediction(pred) {
+  const zone = document.getElementById('prediction-result');
+  if (!zone) return;
+
+  const { gagnant, coups, certain } = pred;
+
+  let couleur, emoji, nomJoueur, certitudeTexte;
+
+  if (gagnant === 0) {
+    couleur = '#888';
+    emoji = '🤝';
+    nomJoueur = 'Match nul';
+    certitudeTexte = certain ? 'résultat forcé' : 'tendance';
+  } else {
+    const estJ1 = gagnant === 1;
+    const nomCouleur = (estJ1 === (couleurJoueur1 === 1)) ? 'Rouge' : 'Jaune';
+    couleur = nomCouleur === 'Rouge' ? '#e63946' : '#ffd60a';
+    emoji = nomCouleur === 'Rouge' ? '🔴' : '🟡';
+    nomJoueur = `Joueur ${nomCouleur}`;
+    certitudeTexte = certain ? 'victoire forcée' : 'favori';
+  }
+
+  const coupsTexte = coups > 0
+    ? `en ~${coups} coup${coups > 1 ? 's' : ''}`
+    : '';
+
+  zone.style.display = 'flex';
+  zone.innerHTML = `
+    <span class="pred-emoji">${emoji}</span>
+    <span class="pred-nom" style="color:${couleur}">${nomJoueur}</span>
+    <span class="pred-detail">${coupsTexte}</span>
+    <span class="pred-certitude ${certain ? 'certain' : 'probable'}">${certitudeTexte}</span>
+  `;
+}
+
+function cacherPrediction() {
+  const zone = document.getElementById('prediction-result');
+  if (zone) { zone.style.display = 'none'; zone.innerHTML = ''; }
+}
+
 // ===================== BARRE DE PROGRESSION IA =====================
-// Durée estimée en ms selon la profondeur (calibrée pour 9x9 + alpha-bêta)
 function dureeEstimeeIA(profondeur) {
   const base = {
     1: 50,   2: 100,    3: 200,    4: 500,
@@ -259,7 +335,6 @@ function demarrerProgression(profondeur) {
   const texte     = document.getElementById('ia-progress-text');
   if (!conteneur || !barre || !texte) return;
 
-  // Stopper une progression éventuelle en cours
   arreterProgression(false);
 
   const duree = dureeEstimeeIA(profondeur);
@@ -268,9 +343,6 @@ function demarrerProgression(profondeur) {
   barre.style.width = '0%';
   texte.textContent = '0%';
 
-  // Mise à jour toutes les 50ms
-  // Courbe 1 - e^(-3t/T) : monte vite au début, ralentit vers 95%
-  // Elle ne peut jamais atteindre 100% seule — c'est le vrai résultat qui clôt
   _progressTimer = setInterval(() => {
     const elapsed = performance.now() - _progressStart;
     const ratio = elapsed / duree;
@@ -281,7 +353,6 @@ function demarrerProgression(profondeur) {
 }
 
 function finirProgression() {
-  // Le résultat est arrivé : snap à 100% puis disparition
   arreterProgression(false);
   const conteneur = document.getElementById('ia-progress-container');
   const barre     = document.getElementById('ia-progress-bar');
@@ -308,7 +379,7 @@ function arreterProgression(cacher = true) {
 function jouerUnCoupIA(token) {
   if (loopToken !== token) return;
 
-  const prof = parseInt(document.getElementById('num-prof').value) || 4;
+  const prof = getProfondeur();
   demarrerProgression(prof);
 
   apiFetch('/api/playIA', { method: 'POST' })
@@ -330,7 +401,7 @@ function lancerBoucleIA(delai, token) {
   function step() {
     if (!loopIA || loopToken !== token) { loopIA = false; arreterProgression(true); return; }
 
-    const prof = parseInt(document.getElementById('num-prof').value) || 4;
+    const prof = getProfondeur();
     demarrerProgression(prof);
 
     apiFetch('/api/playIA', { method: 'POST' })
@@ -382,6 +453,7 @@ function togglePeinture() {
     btnIA.style.display = 'none';
     btnPaint.textContent = '🎨 Peindre';
     detachPaintListeners();
+    cacherPrediction();
 
     apiFetch('/api/setPlateau', {
       method: 'POST',
@@ -390,10 +462,8 @@ function togglePeinture() {
     })
     .then(game => {
       afficherEtat(game);
-      if (modeActuel !== 0) {
+      if (!game.partieTerminee && modeActuel !== 0) {
         setModeActif(modeActuel);
-        const noms = ['', 'JvsJ', 'JvsO', 'JvsO_IA', 'OvsO', 'IAvsIA'];
-        afficherMessage(`Situation chargée — continuez en ${noms[modeActuel]} !`);
         const token = loopToken;
         const joueur = game.joueurCourant;
         const iaEstJoueur1 = (couleurJoueur1 === 2);
@@ -405,9 +475,8 @@ function togglePeinture() {
         } else if (cEstTourIA) {
           setTimeout(() => jouerUnCoupIA(token), 500);
         }
-      } else {
+      } else if (modeActuel === 0) {
         document.getElementById('board-overlay').style.display = 'flex';
-        afficherMessage('Situation chargée — choisissez un mode pour continuer');
       }
     })
     .catch(console.error);
@@ -459,10 +528,10 @@ function afficherEtat(game) {
   if (!game) return;
   refreshBoard(game.board, game.wins);
   afficherScores(game.scores);
+  cacherPrediction(); // on efface la prédiction à chaque coup joué
   if (game.partieTerminee) {
-    const gagnant = game.joueurCourant;
-    const couleur = getCouleurNom(gagnant);
-    afficherMessage(`Le joueur ${couleur} a gagné !`);
+    const couleur = getCouleurNom(game.joueurCourant);
+    afficherMessage(game.message || `Le joueur ${couleur} a gagné !`);
   } else if (game.message) {
     afficherMessage(game.message);
   } else {
@@ -471,10 +540,9 @@ function afficherEtat(game) {
 }
 
 function getCouleurNom(joueur) {
-  const estJoueur1 = joueur === 1;
   const couleur1 = couleurJoueur1 === 1 ? 'Rouge' : 'Jaune';
   const couleur2 = couleurJoueur1 === 1 ? 'Jaune' : 'Rouge';
-  return estJoueur1 ? couleur1 : couleur2;
+  return joueur === 1 ? couleur1 : couleur2;
 }
 
 function refreshBoard(board, wins) {

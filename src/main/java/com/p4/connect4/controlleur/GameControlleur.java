@@ -20,33 +20,33 @@ import com.p4.connect4.model.Sauvegarde;
 import com.p4.connect4.model.fct_minmax;
 
 @CrossOrigin(origins = {"http://localhost:8080","https://connect4-fzwc.onrender.com"}, allowCredentials = "true")
-@RestController //gestion des requêtes HTML
+@RestController
 @RequestMapping("/api")
 public class GameControlleur {
+
     @Autowired
     private fct_minmax mx;
 
-    private int profondeur = 6;
+    private int profondeur = 4;
+
     @Autowired
     private Sessionjeu jeu;
+
     @Autowired
     private PartieDB dao;
 
-    // Joueur humain
     @PostMapping("/play/{col}")
-public Map<String, Object> play(@PathVariable int col) {
-    jeu.getGame().gameplay(col);
-    return buildResponse(); // retourne l'état après le coup humain uniquement
-}
+    public Map<String, Object> play(@PathVariable int col) {
+        jeu.getGame().gameplay(col);
+        return buildResponse();
+    }
 
-    // Reprendre
     @PostMapping("/play")
     public Map<String, Object> playGame() {
         jeu.getGame().reprendre();
         return buildResponse();
     }
 
-    // Coup IA
     @PostMapping("/playIA")
     public Map<String, Object> playIA() {
         if (!jeu.getGame().getisPartieTerminee() && !jeu.getGame().pause) {
@@ -55,7 +55,6 @@ public Map<String, Object> play(@PathVariable int col) {
         return buildResponse();
     }
 
-    // Calcul du score et profondeur
     @PostMapping("/analyse")
     public Map<String, Object> analyse(@RequestParam(defaultValue = "4") int profondeur) {
         this.profondeur = Math.max(1, Math.min(12, profondeur));
@@ -71,31 +70,53 @@ public Map<String, Object> play(@PathVariable int col) {
         return resp;
     }
 
-    // Rejouer
+    // ── PRÉDICTION ──────────────────────────────────────────────────────────────
+    @PostMapping("/predire")
+    public Map<String, Object> predire(@RequestParam(defaultValue = "6") int profondeur) {
+        int prof = Math.max(1, Math.min(12, profondeur));
+        int[][] plateau      = jeu.getGame().getPlateau();
+        int joueurCourant    = jeu.getGame().getJoueurCourant();
+
+        fct_minmax.Prediction pred = mx.predire(plateau, prof, joueurCourant);
+
+        Map<String, Object> resp = new HashMap<>();
+        resp.put("gagnant",    pred.gagnant);   // 0 = nul, 1 = J1, 2 = J2
+        resp.put("coups",      pred.coups);      // nb de coups restants estimés
+        resp.put("certain",    pred.certain);    // victoire forcée ou simple favori
+        resp.put("profondeur", prof);
+        return resp;
+    }
+    // ────────────────────────────────────────────────────────────────────────────
+
     @PostMapping("/reset")
     public Map<String, Object> reset() {
         jeu.getGame().redemarrer_p();
         return buildResponse();
     }
 
-    // Changement de mode
     @PostMapping("/setMode/{mode}")
-    public Map<String, Object> setMode(@PathVariable int mode) {
+    public Map<String, Object> setMode(
+            @PathVariable int mode,
+            @RequestParam(defaultValue = "1") int couleur,
+            @RequestParam(required = false) Integer profondeur) {
+        if (profondeur != null) {
+            this.profondeur = Math.max(1, Math.min(12, profondeur));
+        }
         jeu.getGame().setmj(mode);
         Map<String, Object> resp = buildResponse();
         String msg = switch (mode) {
             case 1 -> "Mode 2 joueurs";
             case 2 -> "Mode vs ordinateur aléatoire";
-            case 3 -> "Mode vs ordinateur MiniMax (prof. " + profondeur + ")";
+            case 3 -> "Mode vs ordinateur MiniMax (prof. " + this.profondeur + ")";
             case 4 -> "Mode ordi vs ordi aléatoire";
-            case 5 -> "Mode ordi vs ordi MiniMax (prof. " + profondeur + ")";
+            case 5 -> "Mode ordi vs ordi MiniMax (prof. " + this.profondeur + ")";
             default -> "Mode inconnu";
         };
         resp.put("message", msg);
+        resp.put("profondeur", this.profondeur);
         return resp;
     }
 
-    // Pause
     @PostMapping("/pause")
     public Map<String, Object> pause() {
         jeu.getGame().mt_pause();
@@ -104,7 +125,6 @@ public Map<String, Object> play(@PathVariable int col) {
         return resp;
     }
 
-    // Retirer / Remettre
     @PostMapping("/retirer")
     public Map<String, Object> retirer() {
         jeu.getGame().retirer();
@@ -117,18 +137,20 @@ public Map<String, Object> play(@PathVariable int col) {
         return buildResponse();
     }
 
-    // Etat
     @GetMapping("/state")
     public Map<String, Object> state() {
         return buildResponse();
     }
 
-    // Jouer un coup IA
     private void jouerUnCoupIA() {
         switch (jeu.getGame().mode_j) {
             case 2, 4 -> jeu.getGame().jouervsordi();
             case 3, 5 -> {
-                int col = mx.meilleurCoup(jeu.getGame().getPlateau(), profondeur, jeu.getGame().enregistrement_cp);
+                int col = mx.meilleurCoup(
+                        jeu.getGame().getPlateau(),
+                        profondeur,
+                        jeu.getGame().enregistrement_cp
+                );
                 if (col != -1) jeu.getGame().gameplay(col);
             }
         }
@@ -144,26 +166,22 @@ public Map<String, Object> play(@PathVariable int col) {
         resp.put("mode", jeu.getGame().mode_j);
         resp.put("profondeur", profondeur);
 
-        // Dernier coup lu directement depuis l'historique
         if (!jeu.getGame().enregistrement_cp.isEmpty()) {
-            Coup dernier = jeu.getGame().enregistrement_cp.get(jeu.getGame().enregistrement_cp.size() - 1);
+            Coup dernier = jeu.getGame().enregistrement_cp
+                    .get(jeu.getGame().enregistrement_cp.size() - 1);
             resp.put("dernierCoup", dernier.getcol());
         } else {
             resp.put("dernierCoup", null);
         }
 
-        //Sauvegarde dans la base 
-        if(jeu.getGame().getisPartieTerminee()){
-            try{
+        if (jeu.getGame().getisPartieTerminee()) {
+            try {
                 Sauvegarde sv = jeu.getGame().sauvegarder_p();
                 dao.sauvegarder(sv);
-                resp.put("sauvegarde","ok");
-                System.out.println("partie sauvegardé");
-            } catch (RuntimeException e){
-                if(e.getMessage().equals("Cette partie existe déjà")){
-                    System.out.println("La partie existe déjà");
-                }
-                resp.put("sauvegarde","erreur: "+ e.getMessage());
+                resp.put("sauvegarde", "ok");
+            } catch (Exception e) {
+                System.err.println("[buildResponse] Erreur BDD : " + e.getMessage());
+                resp.put("sauvegarde", "erreur: " + e.getMessage());
             }
         }
 
@@ -183,7 +201,6 @@ public Map<String, Object> play(@PathVariable int col) {
         int rows = grille.length;
         int cols = grille[0].length;
 
-        // Compter les pions pour déterminer le joueur courant
         int count1 = 0, count2 = 0;
         for (int[] row : grille)
             for (int v : row) {
@@ -192,7 +209,6 @@ public Map<String, Object> play(@PathVariable int col) {
             }
         int joueur = (count1 <= count2) ? 1 : 2;
 
-        // Réinitialiser puis charger la grille peinte
         jeu.getGame().redemarrer_p();
         for (int r = 0; r < rows; r++)
             for (int c = 0; c < cols; c++)
@@ -201,16 +217,11 @@ public Map<String, Object> play(@PathVariable int col) {
         jeu.getGame().joueurCourant = joueur;
         jeu.getGame().partieTerminee = false;
 
-        // Remettre les cases gagnantes à zéro avant de recalculer
         for (int r = 0; r < rows; r++)
             for (int c = 0; c < cols; c++)
                 jeu.getGame().casesG[r][c] = false;
 
-        // Reconstruire un historique minimal depuis la grille peinte
-        // (nécessaire pour que meilleurCoup et l'historique fonctionnent)
         jeu.getGame().enregistrement_cp.clear();
-        // On ajoute joueur 1 en premier, joueur 2 en second, en alternant
-        // On scanne de bas en haut pour respecter la gravité du puissance 4
         ArrayList<int[]> pionsJ1 = new ArrayList<>();
         ArrayList<int[]> pionsJ2 = new ArrayList<>();
         for (int c = 0; c < cols; c++) {
@@ -219,7 +230,6 @@ public Map<String, Object> play(@PathVariable int col) {
                 else if (grille[r][c] == 2) pionsJ2.add(new int[]{r, c});
             }
         }
-        // Alterner J1/J2 pour reconstruire un historique cohérent
         int maxCoups = Math.max(pionsJ1.size(), pionsJ2.size());
         for (int i = 0; i < maxCoups; i++) {
             if (i < pionsJ1.size()) {
@@ -232,8 +242,6 @@ public Map<String, Object> play(@PathVariable int col) {
             }
         }
 
-        // Vérifier victoire et match nul sur l'état actuel de la grille
-        // On teste chaque case occupée — checkvictoire marque aussi casesG
         boolean victoireTrouvee = false;
         outer:
         for (int r = 0; r < rows; r++) {
@@ -241,7 +249,6 @@ public Map<String, Object> play(@PathVariable int col) {
                 if (grille[r][c] != 0) {
                     if (jeu.getGame().checkvictoire(r, c)) {
                         jeu.getGame().partieTerminee = true;
-                        // joueurCourant doit pointer sur le gagnant pour l'affichage
                         jeu.getGame().joueurCourant = grille[r][c];
                         victoireTrouvee = true;
                         break outer;
@@ -249,11 +256,20 @@ public Map<String, Object> play(@PathVariable int col) {
                 }
             }
         }
-
         if (!victoireTrouvee && jeu.getGame().ismtchnul()) {
             jeu.getGame().partieTerminee = true;
         }
 
-        return buildResponse();
+        Map<String, Object> resp = buildResponse();
+        if (jeu.getGame().getisPartieTerminee()) {
+            String couleurGagnant = (jeu.getGame().joueurCourant == 1) ? "Rouge" : "Jaune";
+            resp.put("message", victoireTrouvee
+                    ? "Le joueur " + couleurGagnant + " a déjà gagné !"
+                    : "Match nul !");
+        } else {
+            String couleurCourant = (joueur == 1) ? "Rouge" : "Jaune";
+            resp.put("message", "Situation chargée — tour du joueur " + couleurCourant);
+        }
+        return resp;
     }
 }

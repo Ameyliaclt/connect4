@@ -56,9 +56,10 @@
         <button class="btn-action" onclick="api.pause()">⏸</button>
         <button class="btn-action" onclick="api.play()">▷</button>
       </div>
-      <input type="number" id="num-prof" placeholder="ex: 6" min="1" max="12">
+      <input type="number" id="num-prof" placeholder="ex: 4" min="1" max="12">
       <button class="btn-mode" onclick="api.analyse()">Analyse</button>
-      <button class="btn-mode" onclick="api.suggestion()"> IA jouerait </button>
+      <button class="btn-mode" onclick="api.suggestion()">IA jouerait</button>
+      <button class="btn-mode" id="btn-predire" onclick="api.predire()">Prédiction</button>
 
       <span class="sidebar-label">Mode de jeu</span>
       <button class="btn-mode" data-mode="1" onclick="api.setModeJ(1)">JvsJ</button>
@@ -75,7 +76,7 @@
         <button id="brush-jaune" class="btn-brush" onclick="setPinceau(2)" title="Pion Jaune">
           <span class="color-preview jaune-preview"></span>
         </button>
-        <button id="brush-gomme" class="btn-brush" onclick="setPinceau(0)" title="Gomme"> ↩️ </button>
+        <button id="brush-gomme" class="btn-brush" onclick="setPinceau(0)" title="Gomme">↩️</button>
       </div>
       <button id="btn-paint-mode" class="btn-mode" onclick="togglePeinture()">🎨 Peindre</button>
       <button id="btn-ia-peint" class="btn-mode" onclick="api.suggestionPeinture()" style="display:none;">Analyse prochain coup IA</button>
@@ -98,7 +99,10 @@
         </div>
         <span id="ia-progress-text">0%</span>
       </div>
+      <!-- Résultat prédiction -->
+      <div id="prediction-result"></div>
     </div>
+
     <div style="text-align:center;padding:8px;font-family:'DM Mono',monospace;font-size:0.8rem;color:#888;letter-spacing:0.05em;background:transparent;grid-column:2;align-self:end;">
       Réalisé par <span style="color:var(--bleu);font-weight:500;">Ameylia Clement</span>
     </div>

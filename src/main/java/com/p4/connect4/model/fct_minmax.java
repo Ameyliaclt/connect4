@@ -1,21 +1,24 @@
 package com.p4.connect4.model;
 import java.util.ArrayList;
+
 import org.springframework.stereotype.Component;
+
 @Component
 public class fct_minmax {
     PartieDB db;
     Evaluation eval;
+
     public fct_minmax(PartieDB db, Evaluation eval){
         this.db = db;
         this.eval = eval;
     }
+
+    // ===================== MÉTHODES EXISTANTES =====================
+
     public int meilleurCoup(int[][] plateau, int profondeur, ArrayList<Coup> historique) {
-        //recherche en BDD
         int coupBD = db.chercherMeilleurCoup(historique);
-        if(coupBD != -1){
-            return coupBD;
-        }
-        //algo enclenché
+        if (coupBD != -1) return coupBD;
+
         System.out.println("algo minmax enclenché");
         int meilleurScore = Integer.MIN_VALUE;
         int meilleurColonne = -1;
@@ -41,10 +44,10 @@ public class fct_minmax {
     }
 
     public int minmax(int[][] tabl, int prof, boolean maxplayer) {
-        if (victoire(tabl, 2))   return 100000 + prof;
-        if (victoire(tabl, 1))   return -100000 - prof;
-        if (plateauPlein(tabl))  return 0;
-        if (prof == 0)           return eval.evaluer(tabl, 2);
+        if (victoire(tabl, 2))  return 100000 + prof;
+        if (victoire(tabl, 1))  return -100000 - prof;
+        if (plateauPlein(tabl)) return 0;
+        if (prof == 0)          return eval.evaluer(tabl, 2);
 
         if (maxplayer) {
             int meilleurScore = Integer.MIN_VALUE;
@@ -52,7 +55,7 @@ public class fct_minmax {
                 int row = simulCoup(tabl, col, 2);
                 if (row != -1) {
                     int score = minmax(tabl, prof - 1, false);
-                    annulCoup(tabl, row, col); 
+                    annulCoup(tabl, row, col);
                     if (score > meilleurScore) meilleurScore = score;
                 }
             }
@@ -63,13 +66,120 @@ public class fct_minmax {
                 int row = simulCoup(tabl, col, 1);
                 if (row != -1) {
                     int score = minmax(tabl, prof - 1, true);
-                    annulCoup(tabl, row, col); // FIX 2 : on passe row précis
+                    annulCoup(tabl, row, col);
                     if (score < meilleurScore) meilleurScore = score;
                 }
             }
             return meilleurScore;
         }
     }
+
+    // ===================== PRÉDICTION =====================
+
+    /**
+     * Résultat d'une prédiction :
+     *  - gagnant  : 1, 2, ou 0 (match nul)
+     *  - coups    : nombre de coups minimum avant la fin (-1 si inconnu)
+     *  - certain  : true si la victoire est forcée (l'adversaire ne peut pas l'éviter)
+     */
+    public static class Prediction {
+        public int gagnant;   // 1, 2, 0
+        public int coups;     // nb de coups restants
+        public boolean certain;
+        public Prediction(int gagnant, int coups, boolean certain) {
+            this.gagnant = gagnant;
+            this.coups   = coups;
+            this.certain = certain;
+        }
+    }
+
+    /**
+     * Prédit l'issue de la partie depuis l'état actuel du plateau.
+     *
+     * @param plateau   état courant
+     * @param profondeur profondeur de recherche
+     * @param joueurCourant le joueur qui doit jouer maintenant (1 ou 2)
+     */
+    public Prediction predire(int[][] plateau, int profondeur, int joueurCourant) {
+        // Vérifier d'abord si une victoire est déjà présente sur le plateau
+        if (victoire(plateau, 1)) return new Prediction(1, 0, true);
+        if (victoire(plateau, 2)) return new Prediction(2, 0, true);
+        if (plateauPlein(plateau)) return new Prediction(0, 0, true);
+
+        // Lancer la recherche minimax avec comptage de coups
+        // On joue du point de vue du joueur 2 (IA) mais on adapte selon joueurCourant
+        boolean iaJoueMaintenant = (joueurCourant == 2);
+        int[] resultat = minmaxPrediction(plateau, profondeur, iaJoueMaintenant, 0);
+
+        // resultat[0] = score final, resultat[1] = profondeur à laquelle on a trouvé la fin
+        int score      = resultat[0];
+        int coupsTrouves = resultat[1];
+
+        if (score > 50000) {
+            // Joueur 2 gagne de façon forcée
+            return new Prediction(2, coupsTrouves, true);
+        } else if (score < -50000) {
+            // Joueur 1 gagne de façon forcée
+            return new Prediction(1, coupsTrouves, true);
+        } else if (score == 0 && plateauPlein(plateau)) {
+            return new Prediction(0, coupsTrouves, true);
+        } else {
+            // Pas de victoire forcée trouvée dans la profondeur donnée
+            // On retourne le favori selon le score d'évaluation
+            if (score > 0) {
+                return new Prediction(2, coupsTrouves, false);
+            } else if (score < 0) {
+                return new Prediction(1, coupsTrouves, false);
+            } else {
+                return new Prediction(0, coupsTrouves, false);
+            }
+        }
+    }
+
+    /**
+     * Minimax qui retourne [score, coupsRestants].
+     * coupsRestants = profondeurMax - profondeurActuelle au moment de la fin trouvée.
+     */
+    private int[] minmaxPrediction(int[][] tabl, int prof, boolean maxplayer, int coupJoues) {
+        if (victoire(tabl, 2))  return new int[]{100000 + prof, coupJoues};
+        if (victoire(tabl, 1))  return new int[]{-100000 - prof, coupJoues};
+        if (plateauPlein(tabl)) return new int[]{0, coupJoues};
+        if (prof == 0)          return new int[]{eval.evaluer(tabl, 2), coupJoues};
+
+        if (maxplayer) {
+            int meilleurScore = Integer.MIN_VALUE;
+            int meilleursCoups = coupJoues;
+            for (int col = 0; col < tabl[0].length; col++) {
+                int row = simulCoup(tabl, col, 2);
+                if (row != -1) {
+                    int[] res = minmaxPrediction(tabl, prof - 1, false, coupJoues + 1);
+                    annulCoup(tabl, row, col);
+                    if (res[0] > meilleurScore) {
+                        meilleurScore  = res[0];
+                        meilleursCoups = res[1];
+                    }
+                }
+            }
+            return new int[]{meilleurScore, meilleursCoups};
+        } else {
+            int meilleurScore = Integer.MAX_VALUE;
+            int meilleursCoups = coupJoues;
+            for (int col = 0; col < tabl[0].length; col++) {
+                int row = simulCoup(tabl, col, 1);
+                if (row != -1) {
+                    int[] res = minmaxPrediction(tabl, prof - 1, true, coupJoues + 1);
+                    annulCoup(tabl, row, col);
+                    if (res[0] < meilleurScore) {
+                        meilleurScore  = res[0];
+                        meilleursCoups = res[1];
+                    }
+                }
+            }
+            return new int[]{meilleurScore, meilleursCoups};
+        }
+    }
+
+    // ===================== UTILITAIRES =====================
 
     private int simulCoup(int[][] tabl, int col, int joueur) {
         for (int row = tabl.length - 1; row >= 0; row--) {
@@ -80,7 +190,7 @@ public class fct_minmax {
         }
         return -1;
     }
-    
+
     private void annulCoup(int[][] tabl, int row, int col) {
         tabl[row][col] = 0;
     }
