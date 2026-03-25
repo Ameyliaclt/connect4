@@ -16,32 +16,66 @@ public class fct_minmax {
     // ===================== MÉTHODES EXISTANTES =====================
 
     public int meilleurCoup(int[][] plateau, int profondeur, ArrayList<Coup> historique) {
-        int coupBD = db.chercherMeilleurCoup(historique);
-        if (coupBD != -1) return coupBD;
+    
+    int coupBD = db.chercherMeilleurCoup(historique);
+    
+    // ── Calcul minimax en temps réel ──────────────────────────────
+    int meilleurScoreMM = Integer.MIN_VALUE;
+    int meilleurColonneMM = -1;
 
-        System.out.println("algo minmax enclenché");
-        int meilleurScore = Integer.MIN_VALUE;
-        int meilleurColonne = -1;
-
-        for (int col = 0; col < plateau[0].length; col++) {
-            int[][] copie = copierPlateau(plateau);
-            int row = simulCoup(copie, col, 2);
-            if (row != -1) {
-                int score = minmax(copie, profondeur - 1, false);
-                if (score > meilleurScore) {
-                    meilleurScore = score;
-                    meilleurColonne = col;
-                }
+    for (int col = 0; col < plateau[0].length; col++) {
+        int[][] copie = copierPlateau(plateau);
+        int row = simulCoup(copie, col, 2);
+        if (row != -1) {
+            int score = minmax(copie, profondeur - 1, false);
+            if (score > meilleurScoreMM) {
+                meilleurScoreMM = score;
+                meilleurColonneMM = col;
             }
         }
-
-        if (meilleurColonne == -1) {
-            for (int col = 0; col < plateau[0].length; col++) {
-                if (plateau[0][col] == 0) { meilleurColonne = col; break; }
-            }
-        }
-        return meilleurColonne;
     }
+
+    // ── Pas de coup BDD : on retourne minimax directement ─────────
+    if (coupBD == -1) return meilleurColonneMM;
+
+    // ── Coup BDD trouvé : on évalue son score minimax ─────────────
+    int scoreBD = Integer.MIN_VALUE;
+    int[][] copieBD = copierPlateau(plateau);
+    int rowBD = simulCoup(copieBD, coupBD, 2);
+    if (rowBD != -1) {
+        scoreBD = minmax(copieBD, profondeur - 1, false);
+    }
+
+    System.out.println("[meilleurCoup] BDD col=" + coupBD + " score=" + scoreBD
+            + " | MM col=" + meilleurColonneMM + " score=" + meilleurScoreMM);
+
+    // ── Règles de priorité ────────────────────────────────────────
+
+    // 1. Victoire immédiate BDD → toujours prendre
+    if (scoreBD >= 100000) return coupBD;
+
+    // 2. Victoire immédiate minimax → toujours prendre
+    if (meilleurScoreMM >= 100000) return meilleurColonneMM;
+
+    // 3. Le coup BDD mène à une défaite forcée → ignorer la BDD
+    if (scoreBD <= -100000) return meilleurColonneMM;
+
+    // 4. Comparer les deux scores avec un seuil de tolérance
+    //    Si le minimax est significativement meilleur (>15%), on le préfère
+    //    Sinon on fait confiance à la BDD (elle peut avoir une info positionnelle
+    //    que le minimax à profondeur limitée ne voit pas)
+    double seuil = 0.15; // 15% de marge
+    int ref = Math.max(Math.abs(meilleurScoreMM), 1);
+    double ecart = (double)(meilleurScoreMM - scoreBD) / ref;
+
+    if (ecart > seuil) {
+        System.out.println("[meilleurCoup] minimax préféré (écart=" + String.format("%.2f", ecart) + ")");
+        return meilleurColonneMM;
+    }
+
+    System.out.println("[meilleurCoup] BDD conservée (écart=" + String.format("%.2f", ecart) + ")");
+    return coupBD;
+}
 
     public int minmax(int[][] tabl, int prof, boolean maxplayer) {
         if (victoire(tabl, 2))  return 100000 + prof;
