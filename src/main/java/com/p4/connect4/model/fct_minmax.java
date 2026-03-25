@@ -16,8 +16,27 @@ public class fct_minmax {
     // ===================== MÉTHODES EXISTANTES =====================
 
     public int meilleurCoup(int[][] plateau, int profondeur, ArrayList<Coup> historique) {
+
+        // 🔥 COUP GAGNANT IMMÉDIAT
+for (int col = 0; col < plateau[0].length; col++) {
+    int[][] copie = copierPlateau(plateau);
+    int row = simulCoup(copie, col, 2);
+    if (row != -1 && victoire(copie, 2)) {
+        return col;
+    }
+}
+
+// 🔥 BLOQUER ADVERSAIRE
+for (int col = 0; col < plateau[0].length; col++) {
+    int[][] copie = copierPlateau(plateau);
+    int row = simulCoup(copie, col, 1);
+    if (row != -1 && victoire(copie, 1)) {
+        return col;
+    }
+}
     
     int coupBD = db.chercherMeilleurCoup(historique);
+    
     
     // ── Calcul minimax en temps réel ──────────────────────────────
     int meilleurScoreMM = Integer.MIN_VALUE;
