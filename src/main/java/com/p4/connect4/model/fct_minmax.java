@@ -64,7 +64,7 @@ public class fct_minmax {
     //    Si le minimax est significativement meilleur (>15%), on le préfère
     //    Sinon on fait confiance à la BDD (elle peut avoir une info positionnelle
     //    que le minimax à profondeur limitée ne voit pas)
-    double seuil = 0.15; // 15% de marge
+    double seuil = 0.05; 
     int ref = Math.max(Math.abs(meilleurScoreMM), 1);
     double ecart = (double)(meilleurScoreMM - scoreBD) / ref;
 
