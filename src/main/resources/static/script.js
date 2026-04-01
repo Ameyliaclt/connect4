@@ -2,7 +2,7 @@ const ROWS = 9, COLS = 9;
 let dernierColonne = null;
 let couleurJoueur1 = 1;
 
-// ===================== GRILLE =====================
+//Grille 
 (function buildGrid() {
   const colNums = document.getElementById('col-numbers');
   for (let c = 0; c < COLS; c++) {
@@ -33,7 +33,6 @@ let couleurJoueur1 = 1;
   }
 })();
 
-// ===================== MODALES =====================
 function ouvrirParametres() {
   document.getElementById('modal-overlay').style.display = 'flex';
 }
@@ -60,7 +59,6 @@ function confirmerCouleur() {
   if (mode !== null) _lancerMode(mode);
 }
 
-// ===================== MODE =====================
 let modeActuel = 0;
 let loopIA = false;
 let loopToken = 0;
@@ -104,7 +102,6 @@ function apiFetch(url, options = {}) {
   return fetch(url, { ...options, credentials: 'include' }).then(r => r.json());
 }
 
-// ===================== API =====================
 const api = {
 
   setModeJ(m) {
@@ -206,7 +203,7 @@ const api = {
       btn.textContent = '⏳ Calcul…';
     }
 
-    // Barre de progression pendant le calcul
+    //Barre de progression de l'IA
     demarrerProgression(prof);
 
     apiFetch(`/api/predire?profondeur=${prof}`, { method: 'POST' })
@@ -275,7 +272,6 @@ const api = {
   }
 };
 
-// ===================== AFFICHAGE PRÉDICTION =====================
 function afficherPrediction(pred) {
   const zone = document.getElementById('prediction-result');
   if (!zone) return;
@@ -316,7 +312,6 @@ function cacherPrediction() {
   if (zone) { zone.style.display = 'none'; zone.innerHTML = ''; }
 }
 
-// ===================== BARRE DE PROGRESSION IA =====================
 function dureeEstimeeIA(profondeur) {
   const base = {
     1: 50,   2: 100,    3: 200,    4: 500,
@@ -375,7 +370,6 @@ function arreterProgression(cacher = true) {
   }
 }
 
-// ===================== IA =====================
 function jouerUnCoupIA(token) {
   if (loopToken !== token) return;
 
@@ -423,7 +417,6 @@ function lancerBoucleIA(delai, token) {
   setTimeout(step, delai);
 }
 
-// ===================== MODE PEINTURE =====================
 let modePeinture = false;
 let pinceauActuel = 1;
 let grillePeinte = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
@@ -454,6 +447,8 @@ function togglePeinture() {
     btnPaint.textContent = '🎨 Peindre';
     detachPaintListeners();
     cacherPrediction();
+
+    dernierColonne = null;
 
     apiFetch('/api/setPlateau', {
       method: 'POST',
@@ -523,7 +518,6 @@ function detachPaintListeners() {
   _paintHandlers.clear();
 }
 
-// ===================== AFFICHAGE =====================
 function afficherEtat(game) {
   if (!game) return;
   refreshBoard(game.board, game.wins);

@@ -1,6 +1,7 @@
 package com.p4.connect4.model;
 import java.util.ArrayList;
 import java.util.Random;
+
 public class Model_connect4 {
     int num_partie = 1;
     public int confiance = 1;
@@ -31,7 +32,6 @@ public class Model_connect4 {
     
     public boolean gameplay (int col){
         if(!partieTerminee && pause == false){
-            //renitial les cases gagnantes
             for(int r =0; r< rows; r++){
                 for(int c = 0; c < cols; c++){
                     casesG[r][c] = false;
@@ -60,7 +60,6 @@ public class Model_connect4 {
         return false;
     }
 
-
     public void jouervsordi(){
         ArrayList<Integer> col_p = new ArrayList<>();
         for(int i = 0; i< cols;i++){
@@ -73,12 +72,10 @@ public class Model_connect4 {
         gameplay(colonne_c);
     }
 
-    //verifier la victoire
-    public  boolean checkvictoire(int row, int col){ 
+    public boolean checkvictoire(int row, int col){ 
         int count = 1;
         int joueur = tabl[row][col];
 
-        //verification horizontale
         for(int c = col - 1; c >= 0; c--){
             if(tabl[row][c] == joueur){
                 count++;
@@ -112,7 +109,6 @@ public class Model_connect4 {
             return true;
         }
 
-        //verification verticale
         count = 1 ; 
         for(int r = row +1; r < rows; r++){
             if(tabl[r][col] == joueur){
@@ -147,7 +143,6 @@ public class Model_connect4 {
             return true;
         }
 
-        //verification diagonales
         count = 1;
         for(int r = row - 1, c = col - 1; r>=0 && c>=0; r--, c--){
             if (tabl[r][c] == joueur){
@@ -158,7 +153,7 @@ public class Model_connect4 {
             if(tabl[r][c] == joueur){
                 count++;
             } else {break;}
-            }
+        }
         if(count >=4){
             casesG[row][col]=true;
             for(int r = row - 1, c = col - 1; r>=0 && c>=0; r--, c--){
@@ -178,7 +173,6 @@ public class Model_connect4 {
             return true;
         }
 
-        //verification diagonales inverses
         count =1;
         for(int r = row - 1, c = col + 1; r >=0 && c <cols; r--, c++){
             if (tabl [r][c] == joueur){
@@ -215,7 +209,6 @@ public class Model_connect4 {
         return false;
     }
 
-    //verifier Match nul
     public boolean ismtchnul(){
         for(int c = 0; c < cols; c++){
             if(tabl[0][c] == 0){
@@ -225,7 +218,6 @@ public class Model_connect4 {
         return true;
     }
 
-    
     public void retirer(){
         if(!enregistrement_cp.isEmpty()){
             Coup cp_d =enregistrement_cp.get(enregistrement_cp.size() - 1);
@@ -251,7 +243,6 @@ public class Model_connect4 {
             rm=false;
         }
     }
-
 
     public void redemarrer_p(){
         for(int r =0; r< rows; r++){
@@ -294,21 +285,27 @@ public class Model_connect4 {
     public boolean getisPartieTerminee(){
         return partieTerminee;
     }
+
     public boolean getCaseG(int row, int col){
         return casesG[row][col];
     }
+
     public int getRows(){
         return rows;
     }
+
     public int getCols(){
         return cols;
     }
+
     public void setmj(int a){
         this.mode_j = a;
     }
+
     public int getnum_p(){
         return num_partie;
     }
+
     public Sauvegarde sauvegarder_p() {
         Sauvegarde sv = new Sauvegarde();
         sv.grille = new int[rows][cols];
@@ -373,37 +370,57 @@ public class Model_connect4 {
         }
     } 
 
-    /*public void chargerSave_fch(Sauvegarde save){
-        this.tabl = save.grille;
-        this.joueurCourant = save.joueurCourant;
-        this.num_partie = save.num_p;
-        this.partieTerminee = save.partieterminee;
-        this.casesG = save.casesGagnantes;
-        this.enregistrement_cp = save.historique_coup;
-
-        if(!this.partieTerminee){
-            for(int r =0; r<rows;r++){
-                for(int c=0;c<cols;c++){
-                    casesG[r][c]=false;
-                }
-            }
-        }
-        if(!enregistrement_cp.isEmpty()){
-            Coup dernier_cp = enregistrement_cp.get(enregistrement_cp.size()-1);
-            if(checkvictoire(dernier_cp.getligne(), dernier_cp.getcol())){
-                partieTerminee = true;
-            }else if(ismtchnul()){
-                partieTerminee=true;
-            }else{
-                partieTerminee=false;
-            }
-        }
-    }*/
     public int[][] getPlateau() {
         int[][] copie = new int[tabl.length][];
         for (int i = 0; i < tabl.length; i++) {
             copie[i] = tabl[i].clone();
         }
         return copie;
+    }
+
+    public void setPlateau(int[][] nouveauPlateau) {
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                tabl[r][c] = nouveauPlateau[r][c];
+            }
+        }
+
+        enregistrement_cp.clear();
+        cp_annules.clear();
+
+        for (int c = 0; c < cols; c++) {
+            for (int r = rows - 1; r >= 0; r--) {
+                if (tabl[r][c] != 0) {
+                    enregistrement_cp.add(new Coup(c, r, tabl[r][c]));
+                }
+            }
+        }
+
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                casesG[r][c] = false;
+            }
+        }
+        partieTerminee = false;
+        pause = false;
+
+        int nbJ1 = 0, nbJ2 = 0;
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                if (tabl[r][c] == 1) nbJ1++;
+                else if (tabl[r][c] == 2) nbJ2++;
+            }
+        }
+
+        joueurCourant = (nbJ1 <= nbJ2) ? 1 : 2;
+
+        if (!enregistrement_cp.isEmpty()) {
+            Coup dernierCoup = enregistrement_cp.get(enregistrement_cp.size() - 1);
+            if (checkvictoire(dernierCoup.getligne(), dernierCoup.getcol())) {
+                partieTerminee = true;
+            } else if (ismtchnul()) {
+                partieTerminee = true;
+            }
+        }
     }
 }

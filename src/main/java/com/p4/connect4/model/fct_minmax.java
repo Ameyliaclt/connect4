@@ -13,88 +13,64 @@ public class fct_minmax {
         this.eval = eval;
     }
 
-    // ===================== MÉTHODES EXISTANTES =====================
-
     public int meilleurCoup(int[][] plateau, int profondeur, ArrayList<Coup> historique) {
 
-        // 🔥 COUP GAGNANT IMMÉDIAT
-for (int col = 0; col < plateau[0].length; col++) {
-    int[][] copie = copierPlateau(plateau);
-    int row = simulCoup(copie, col, 2);
-    if (row != -1 && victoire(copie, 2)) {
-        return col;
-    }
-}
-
-// 🔥 BLOQUER ADVERSAIRE
-for (int col = 0; col < plateau[0].length; col++) {
-    int[][] copie = copierPlateau(plateau);
-    int row = simulCoup(copie, col, 1);
-    if (row != -1 && victoire(copie, 1)) {
-        return col;
-    }
-}
-    
-    int coupBD = db.chercherMeilleurCoup(historique);
-    
-    
-    // ── Calcul minimax en temps réel ──────────────────────────────
-    int meilleurScoreMM = Integer.MIN_VALUE;
-    int meilleurColonneMM = -1;
-
-    for (int col = 0; col < plateau[0].length; col++) {
-        int[][] copie = copierPlateau(plateau);
-        int row = simulCoup(copie, col, 2);
-        if (row != -1) {
-            int score = minmax(copie, profondeur - 1, false);
-            if (score > meilleurScoreMM) {
-                meilleurScoreMM = score;
-                meilleurColonneMM = col;
+        for (int col = 0; col < plateau[0].length; col++) {
+            int[][] copie = copierPlateau(plateau);
+            int row = simulCoup(copie, col, 2);
+            if (row != -1 && victoire(copie, 2)) {
+                return col;
             }
         }
+
+        for (int col = 0; col < plateau[0].length; col++) {
+            int[][] copie = copierPlateau(plateau);
+            int row = simulCoup(copie, col, 1);
+            if (row != -1 && victoire(copie, 1)) {
+                return col;
+            }
+        }
+        
+        int coupBD = db.chercherMeilleurCoup(historique);
+
+        int meilleurScoreMM = Integer.MIN_VALUE;
+        int meilleurColonneMM = -1;
+
+        for (int col = 0; col < plateau[0].length; col++) {
+            int[][] copie = copierPlateau(plateau);
+            int row = simulCoup(copie, col, 2);
+            if (row != -1) {
+                int score = minmax(copie, profondeur - 1, false);
+                if (score > meilleurScoreMM) {
+                    meilleurScoreMM = score;
+                    meilleurColonneMM = col;
+                }
+            }
+        }
+
+        if (coupBD == -1) return meilleurColonneMM;
+
+        int scoreBD = Integer.MIN_VALUE;
+        int[][] copieBD = copierPlateau(plateau);
+        int rowBD = simulCoup(copieBD, coupBD, 2);
+        if (rowBD != -1) {
+            scoreBD = minmax(copieBD, profondeur - 1, false);
+        }
+
+        if (scoreBD >= 100000) return coupBD;
+        if (meilleurScoreMM >= 100000) return meilleurColonneMM;
+        if (scoreBD <= -100000) return meilleurColonneMM;
+
+        double seuil = 0.05; 
+        int ref = Math.max(Math.abs(meilleurScoreMM), 1);
+        double ecart = (double)(meilleurScoreMM - scoreBD) / ref;
+
+        if (ecart > seuil) {
+            return meilleurColonneMM;
+        }
+
+        return coupBD;
     }
-
-    // ── Pas de coup BDD : on retourne minimax directement ─────────
-    if (coupBD == -1) return meilleurColonneMM;
-
-    // ── Coup BDD trouvé : on évalue son score minimax ─────────────
-    int scoreBD = Integer.MIN_VALUE;
-    int[][] copieBD = copierPlateau(plateau);
-    int rowBD = simulCoup(copieBD, coupBD, 2);
-    if (rowBD != -1) {
-        scoreBD = minmax(copieBD, profondeur - 1, false);
-    }
-
-    System.out.println("[meilleurCoup] BDD col=" + coupBD + " score=" + scoreBD
-            + " | MM col=" + meilleurColonneMM + " score=" + meilleurScoreMM);
-
-    // ── Règles de priorité ────────────────────────────────────────
-
-    // 1. Victoire immédiate BDD → toujours prendre
-    if (scoreBD >= 100000) return coupBD;
-
-    // 2. Victoire immédiate minimax → toujours prendre
-    if (meilleurScoreMM >= 100000) return meilleurColonneMM;
-
-    // 3. Le coup BDD mène à une défaite forcée → ignorer la BDD
-    if (scoreBD <= -100000) return meilleurColonneMM;
-
-    // 4. Comparer les deux scores avec un seuil de tolérance
-    //    Si le minimax est significativement meilleur (>15%), on le préfère
-    //    Sinon on fait confiance à la BDD (elle peut avoir une info positionnelle
-    //    que le minimax à profondeur limitée ne voit pas)
-    double seuil = 0.05; 
-    int ref = Math.max(Math.abs(meilleurScoreMM), 1);
-    double ecart = (double)(meilleurScoreMM - scoreBD) / ref;
-
-    if (ecart > seuil) {
-        System.out.println("[meilleurCoup] minimax préféré (écart=" + String.format("%.2f", ecart) + ")");
-        return meilleurColonneMM;
-    }
-
-    System.out.println("[meilleurCoup] BDD conservée (écart=" + String.format("%.2f", ecart) + ")");
-    return coupBD;
-}
 
     public int minmax(int[][] tabl, int prof, boolean maxplayer) {
         if (victoire(tabl, 2))  return 100000 + prof;
@@ -127,17 +103,9 @@ for (int col = 0; col < plateau[0].length; col++) {
         }
     }
 
-    // ===================== PRÉDICTION =====================
-
-    /**
-     * Résultat d'une prédiction :
-     *  - gagnant  : 1, 2, ou 0 (match nul)
-     *  - coups    : nombre de coups minimum avant la fin (-1 si inconnu)
-     *  - certain  : true si la victoire est forcée (l'adversaire ne peut pas l'éviter)
-     */
     public static class Prediction {
-        public int gagnant;   // 1, 2, 0
-        public int coups;     // nb de coups restants
+        public int gagnant;
+        public int coups;
         public boolean certain;
         public Prediction(int gagnant, int coups, boolean certain) {
             this.gagnant = gagnant;
@@ -146,39 +114,24 @@ for (int col = 0; col < plateau[0].length; col++) {
         }
     }
 
-    /**
-     * Prédit l'issue de la partie depuis l'état actuel du plateau.
-     *
-     * @param plateau   état courant
-     * @param profondeur profondeur de recherche
-     * @param joueurCourant le joueur qui doit jouer maintenant (1 ou 2)
-     */
     public Prediction predire(int[][] plateau, int profondeur, int joueurCourant) {
-        // Vérifier d'abord si une victoire est déjà présente sur le plateau
         if (victoire(plateau, 1)) return new Prediction(1, 0, true);
         if (victoire(plateau, 2)) return new Prediction(2, 0, true);
         if (plateauPlein(plateau)) return new Prediction(0, 0, true);
 
-        // Lancer la recherche minimax avec comptage de coups
-        // On joue du point de vue du joueur 2 (IA) mais on adapte selon joueurCourant
         boolean iaJoueMaintenant = (joueurCourant == 2);
         int[] resultat = minmaxPrediction(plateau, profondeur, iaJoueMaintenant, 0);
 
-        // resultat[0] = score final, resultat[1] = profondeur à laquelle on a trouvé la fin
         int score      = resultat[0];
         int coupsTrouves = resultat[1];
 
         if (score > 50000) {
-            // Joueur 2 gagne de façon forcée
             return new Prediction(2, coupsTrouves, true);
         } else if (score < -50000) {
-            // Joueur 1 gagne de façon forcée
             return new Prediction(1, coupsTrouves, true);
         } else if (score == 0 && plateauPlein(plateau)) {
             return new Prediction(0, coupsTrouves, true);
         } else {
-            // Pas de victoire forcée trouvée dans la profondeur donnée
-            // On retourne le favori selon le score d'évaluation
             if (score > 0) {
                 return new Prediction(2, coupsTrouves, false);
             } else if (score < 0) {
@@ -189,10 +142,6 @@ for (int col = 0; col < plateau[0].length; col++) {
         }
     }
 
-    /**
-     * Minimax qui retourne [score, coupsRestants].
-     * coupsRestants = profondeurMax - profondeurActuelle au moment de la fin trouvée.
-     */
     private int[] minmaxPrediction(int[][] tabl, int prof, boolean maxplayer, int coupJoues) {
         if (victoire(tabl, 2))  return new int[]{100000 + prof, coupJoues};
         if (victoire(tabl, 1))  return new int[]{-100000 - prof, coupJoues};
@@ -231,8 +180,6 @@ for (int col = 0; col < plateau[0].length; col++) {
             return new int[]{meilleurScore, meilleursCoups};
         }
     }
-
-    // ===================== UTILITAIRES =====================
 
     private int simulCoup(int[][] tabl, int col, int joueur) {
         for (int row = tabl.length - 1; row >= 0; row--) {

@@ -70,7 +70,6 @@ public class GameControlleur {
         return resp;
     }
 
-    // ── PRÉDICTION ──────────────────────────────────────────────────────────────
     @PostMapping("/predire")
     public Map<String, Object> predire(@RequestParam(defaultValue = "6") int profondeur) {
         int prof = Math.max(1, Math.min(12, profondeur));
@@ -86,7 +85,6 @@ public class GameControlleur {
         resp.put("profondeur", prof);
         return resp;
     }
-    // ────────────────────────────────────────────────────────────────────────────
 
     @PostMapping("/reset")
     public Map<String, Object> reset() {
