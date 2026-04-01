@@ -2,7 +2,7 @@ const ROWS = 9, COLS = 9;
 let dernierColonne = null;
 let couleurJoueur1 = 1;
 
-//Grille 
+// Grille 
 (function buildGrid() {
   const colNums = document.getElementById('col-numbers');
   for (let c = 0; c < COLS; c++) {
@@ -106,7 +106,14 @@ const api = {
 
   setModeJ(m) {
     const partieEnCours = modeActuel !== 0;
-    if (m === 1 || m === 2 || m === 3) {
+    // JvsJ (mode 1) : Pas de sélection de couleur, on lance direct
+    if (m === 1) {
+      couleurJoueur1 = 1;
+      _lancerMode(1, partieEnCours);
+      return;
+    }
+
+    if (m === 2 || m === 3) {
       if (partieEnCours) {
         _lancerMode(m, true);
       } else {
@@ -189,7 +196,7 @@ const api = {
         if (bestCol !== -1) {
           const el = document.getElementById(`sc-${bestCol}`);
           if (el) el.classList.add('suggestion');
-          afficherMessage(`💡 L'IA jouerait colonne ${bestCol + 1}`);
+          afficherMessage(`L'IA jouerait colonne ${bestCol + 1}`);
         }
       })
       .catch(console.error);
@@ -200,10 +207,9 @@ const api = {
     const btn = document.getElementById('btn-predire');
     if (btn) {
       btn.disabled = true;
-      btn.textContent = '⏳ Calcul…';
+      btn.textContent = 'Calcul...';
     }
 
-    //Barre de progression de l'IA
     demarrerProgression(prof);
 
     apiFetch(`/api/predire?profondeur=${prof}`, { method: 'POST' })
@@ -211,7 +217,7 @@ const api = {
         finirProgression();
         if (btn) {
           btn.disabled = false;
-          btn.textContent = '🔮 Prédire';
+          btn.textContent = 'Prédiction';
         }
         afficherPrediction(pred);
       })
@@ -219,7 +225,7 @@ const api = {
         arreterProgression(true);
         if (btn) {
           btn.disabled = false;
-          btn.textContent = '🔮 Prédire';
+          btn.textContent = 'Prédiction';
         }
         console.error(err);
       });
@@ -265,7 +271,7 @@ const api = {
       if (bestCol !== -1) {
         const el = document.getElementById(`sc-${bestCol}`);
         if (el) el.classList.add('suggestion');
-        afficherMessage(`🤖 L'IA jouerait colonne ${bestCol + 1} (score : ${bestScore})`);
+        afficherMessage(`L'IA jouerait colonne ${bestCol + 1} (score : ${bestScore})`);
       }
     })
     .catch(console.error);
@@ -278,18 +284,16 @@ function afficherPrediction(pred) {
 
   const { gagnant, coups, certain } = pred;
 
-  let couleur, emoji, nomJoueur, certitudeTexte;
+  let couleur, nomJoueur, certitudeTexte;
 
   if (gagnant === 0) {
     couleur = '#888';
-    emoji = '🤝';
     nomJoueur = 'Match nul';
     certitudeTexte = certain ? 'résultat forcé' : 'tendance';
   } else {
-    const estJ1 = gagnant === 1;
-    const nomCouleur = (estJ1 === (couleurJoueur1 === 1)) ? 'Rouge' : 'Jaune';
+    // getCouleurNom(1) est toujours Rouge, getCouleurNom(2) est toujours Jaune
+    const nomCouleur = getCouleurNom(gagnant);
     couleur = nomCouleur === 'Rouge' ? '#e63946' : '#ffd60a';
-    emoji = nomCouleur === 'Rouge' ? '🔴' : '🟡';
     nomJoueur = `Joueur ${nomCouleur}`;
     certitudeTexte = certain ? 'victoire forcée' : 'favori';
   }
@@ -300,7 +304,6 @@ function afficherPrediction(pred) {
 
   zone.style.display = 'flex';
   zone.innerHTML = `
-    <span class="pred-emoji">${emoji}</span>
     <span class="pred-nom" style="color:${couleur}">${nomJoueur}</span>
     <span class="pred-detail">${coupsTexte}</span>
     <span class="pred-certitude ${certain ? 'certain' : 'probable'}">${certitudeTexte}</span>
@@ -438,7 +441,7 @@ function togglePeinture() {
     boardWrap.classList.add('paint-mode');
     btnIA.style.display = 'block';
     btnPaint.textContent = ' Fin peinture ';
-    afficherMessage('🎨 Mode peinture — cliquez/glissez sur les cases');
+    afficherMessage('Mode peinture — cliquez/glissez sur les cases');
     attachPaintListeners();
 
   } else {
@@ -522,7 +525,7 @@ function afficherEtat(game) {
   if (!game) return;
   refreshBoard(game.board, game.wins);
   afficherScores(game.scores);
-  cacherPrediction(); // on efface la prédiction à chaque coup joué
+  cacherPrediction();
   if (game.partieTerminee) {
     const couleur = getCouleurNom(game.joueurCourant);
     afficherMessage(game.message || `Le joueur ${couleur} a gagné !`);
@@ -534,9 +537,8 @@ function afficherEtat(game) {
 }
 
 function getCouleurNom(joueur) {
-  const couleur1 = couleurJoueur1 === 1 ? 'Rouge' : 'Jaune';
-  const couleur2 = couleurJoueur1 === 1 ? 'Jaune' : 'Rouge';
-  return joueur === 1 ? couleur1 : couleur2;
+  // Correction ici : 1 est toujours Rouge visuellement, 2 est toujours Jaune
+  return (joueur === 1) ? 'Rouge' : 'Jaune';
 }
 
 function refreshBoard(board, wins) {
