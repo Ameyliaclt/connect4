@@ -38,14 +38,14 @@ public class fct_minmax {
         int nbCols = plateau[0].length;
         int[] ordre = getOrdreColonnes(nbCols);
 
-        // 1. Victoire immédiate
+        // 1. PRIORITÉ ABSOLUE : Victoire immédiate (gagner directement)
         for (int col : ordre) {
             int[][] copie = copierPlateau(plateau);
             int row = simulCoup(copie, col, 2);
             if (row != -1 && victoire(copie, 2)) return col;
         }
 
-        // 2. Blocage immédiat
+        // 2. DEUXIÈME PRIORITÉ : Blocage immédiat (contrer l'adversaire)
         for (int col : ordre) {
             int[][] copie = copierPlateau(plateau);
             int row = simulCoup(copie, col, 1);
@@ -79,9 +79,10 @@ public class fct_minmax {
             scoreBD = minmax(copieBD, profondeur - 1, false);
         }
 
-        if (scoreBD >= 100000) return coupBD;
-        if (meilleurScoreMM >= 100000) return meilleurColonneMM;
-        if (scoreBD <= -100000) return meilleurColonneMM;
+        // Priorité : Victoire immédiate > Blocage > Stratégie MinMax
+        if (meilleurScoreMM >= 100000) return meilleurColonneMM;  // IA peut gagner directement
+        if (scoreBD >= 100000) return coupBD;                      // BD peut gagner directement
+        if (scoreBD <= -100000) return meilleurColonneMM;          // BD perdrait, préférer MinMax
 
         double seuil = 0.05;
         int ref = Math.max(Math.abs(meilleurScoreMM), 1);
