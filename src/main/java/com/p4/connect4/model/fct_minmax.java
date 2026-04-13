@@ -3,7 +3,6 @@ package com.p4.connect4.model;
 import java.util.ArrayList;
 
 import org.springframework.stereotype.Component;
-
 @Component
 public class fct_minmax {
     PartieDB db;
@@ -14,10 +13,7 @@ public class fct_minmax {
         this.eval = eval;
     }
 
-    /**
-     * Calcule l'ordre des colonnes pour explorer le centre en premier.
-     * Pour 7 colonnes : [3, 4, 2, 5, 1, 6, 0]
-     */
+    //Explore le centre en premier 
     private int[] getOrdreColonnes(int nbCols) {
         int[] ordre = new int[nbCols];
         int mid = nbCols / 2;
@@ -38,14 +34,14 @@ public class fct_minmax {
         int nbCols = plateau[0].length;
         int[] ordre = getOrdreColonnes(nbCols);
 
-        // 1. PRIORITÉ ABSOLUE : Victoire immédiate (gagner directement)
+        // priorité à la victoire immédiate 
         for (int col : ordre) {
             int[][] copie = copierPlateau(plateau);
             int row = simulCoup(copie, col, 2);
             if (row != -1 && victoire(copie, 2)) return col;
         }
 
-        // 2. DEUXIÈME PRIORITÉ : Blocage immédiat (contrer l'adversaire)
+        // priorité au blocage dans un second temps
         for (int col : ordre) {
             int[][] copie = copierPlateau(plateau);
             int row = simulCoup(copie, col, 1);
@@ -56,7 +52,7 @@ public class fct_minmax {
         int meilleurScoreMM = Integer.MIN_VALUE;
         int meilleurColonneMM = -1;
 
-        // 3. Recherche MinMax avec ordre optimisé
+        // Recherche minmax
         for (int col : ordre) {
             int[][] copie = copierPlateau(plateau);
             int row = simulCoup(copie, col, 2);
@@ -79,7 +75,7 @@ public class fct_minmax {
             scoreBD = minmax(copieBD, profondeur - 1, false);
         }
 
-        // Priorité : Victoire immédiate > Blocage > Stratégie MinMax
+        // Stratégie de placement 
         if (meilleurScoreMM >= 100000) return meilleurColonneMM;  // IA peut gagner directement
         if (scoreBD >= 100000) return coupBD;                      // BD peut gagner directement
         if (scoreBD <= -100000) return meilleurColonneMM;          // BD perdrait, préférer MinMax
@@ -87,7 +83,6 @@ public class fct_minmax {
         double seuil = 0.05;
         int ref = Math.max(Math.abs(meilleurScoreMM), 1);
         double ecart = (double) (meilleurScoreMM - scoreBD) / ref;
-
         return (ecart > seuil) ? meilleurColonneMM : coupBD;
     }
 

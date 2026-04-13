@@ -60,6 +60,7 @@ public class Model_connect4 {
         return false;
     }
 
+    //IA joue aléatoirement
     public void jouervsordi(){
         ArrayList<Integer> col_p = new ArrayList<>();
         for(int i = 0; i< cols;i++){

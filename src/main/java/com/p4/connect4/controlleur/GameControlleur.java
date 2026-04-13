@@ -80,8 +80,8 @@ public class GameControlleur {
 
         Map<String, Object> resp = new HashMap<>();
         resp.put("gagnant",    pred.gagnant);   // 0 = nul, 1 = J1, 2 = J2
-        resp.put("coups",      pred.coups);      // nb de coups restants estimés
-        resp.put("certain",    pred.certain);    // victoire forcée ou simple favori
+        resp.put("coups",      pred.coups);      
+        resp.put("certain",    pred.certain);    
         resp.put("profondeur", prof);
         return resp;
     }

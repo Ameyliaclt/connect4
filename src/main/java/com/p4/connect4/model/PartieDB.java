@@ -61,6 +61,7 @@ public class PartieDB {
 
         return -1;
     }
+    
 
     // Sauvegarder dans la BDD
     public void sauvegarder(Sauvegarde s) {
