@@ -34,18 +34,22 @@ public class fct_minmax {
         int nbCols = plateau[0].length;
         int[] ordre = getOrdreColonnes(nbCols);
 
-        // priorité à la victoire immédiate 
+        // victoire de l'IA possible
         for (int col : ordre) {
             int[][] copie = copierPlateau(plateau);
             int row = simulCoup(copie, col, 2);
-            if (row != -1 && victoire(copie, 2)) return col;
+            if (row != -1 && victoire(copie, 2)) {
+                return col;
+            }
         }
 
-        // priorité au blocage dans un second temps
+        //  blocage de l'adversaire 
         for (int col : ordre) {
             int[][] copie = copierPlateau(plateau);
             int row = simulCoup(copie, col, 1);
-            if (row != -1 && victoire(copie, 1)) return col;
+            if (row != -1 && victoire(copie, 1)) {
+                return col;  
+            }
         }
 
         int coupBD = db.chercherMeilleurCoup(historique);
@@ -232,8 +236,6 @@ public class fct_minmax {
 
         return Math.max(0, Math.min(1, 0.35 * marge + 0.25 * stabilite + 0.20 * bonus + 0.20 * profRel));
     }
-
-    // --- Méthodes utilitaires ---
 
     private int simulCoup(int[][] tabl, int col, int joueur) {
         for (int row = tabl.length - 1; row >= 0; row--) {
