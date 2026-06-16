@@ -5,6 +5,10 @@
 Ce projet est une implémentation du jeu **Puissance 4 (Connect 4)** réalisée de manière autonome dans le cadre de ma troisième année de licence en informatique.
 L’objectif était de concevoir une application fonctionnelle en mobilisant des compétences en **développement logiciel, algorithmique et structuration d’un projet complet**, tout en respectant les bonnes pratiques de développement.
 
+## Lien du projet
+
+https://connect4-fzwc.onrender.com
+
 
 ## Objectifs pédagogiques
 
@@ -13,6 +17,7 @@ L’objectif était de concevoir une application fonctionnelle en mobilisant des
 - Développer une application complète de manière autonome
 - Développer une IA qui s'inspire des parties meilleurs joueurs de board Arena enregistrer en base mais également de l'algorithme Min Max
 - Développer une IA qui prédit les coups et la personne qui va gagner tout en mettant la possibilité d'avoir des recommandations de coups possiblement joué par l'IA
+- Hébergement du site et de la base de données en ligne sur des sites d'hébergement gratuit : render et Néon
 
 ## Technologies utilisées
 
